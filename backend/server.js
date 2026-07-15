@@ -6,7 +6,8 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
+// Use /tmp on Vercel (serverless read-only filesystem), else local data dir
+const DATA_DIR = process.env.VERCEL ? '/tmp/data' : path.join(__dirname, 'data');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const PRODUCTS_FILE = path.join(DATA_DIR, 'products.json');
 
@@ -145,7 +146,12 @@ function getStatusMessage(status) {
   return messages[status] || 'Status tidak diketahui, konsultasi dukun dulu.';
 }
 
-app.listen(PORT, () => {
-  console.log(`🧙 Santet Online API berjalan di http://localhost:${PORT}`);
-  console.log(`📦 Data santet tersimpan di ${DATA_DIR}`);
-});
+// Jangan listen langsung kalo dijalankan oleh Vercel (serverless)
+if (process.env.VERCEL) {
+  module.exports = app;
+} else {
+  app.listen(PORT, () => {
+    console.log(`🧙 Santet Online API berjalan di http://localhost:${PORT}`);
+    console.log(`📦 Data santet tersimpan di ${DATA_DIR}`);
+  });
+}

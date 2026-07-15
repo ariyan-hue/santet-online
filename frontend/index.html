@@ -55,9 +55,11 @@
     // ============================
     //  CONFIG
     // ============================
-    const API_URL = window.API_URL || 'http://localhost:3000';
+    const VERCEL_BACKEND = 'https://backend-ct12nlkq1-ariyan-hues-projects.vercel.app';
+    const API_URL = window.API_URL || VERCEL_BACKEND;
     const STORED_API = localStorage.getItem('santet_api_url');
     const BASE_URL = STORED_API || API_URL;
+    console.log('🔮 Santet Online API:', BASE_URL);
 
     let products = [];
     let currentOrder = null;
