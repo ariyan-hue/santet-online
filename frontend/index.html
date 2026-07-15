@@ -93,11 +93,16 @@ async function api(path, options) {
       productName: body.productName || '',
       targetName: body.targetName || '',
       senderName: body.senderName || '',
+      reason: body.reason || '',
       deliveryMethod: body.deliveryMethod || 'biasa',
       status: 'diproses',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      progress: 0
+      estimatedDelivery: new Date(Date.now() + 86400000 * 3).toISOString(),
+      progress: 0,
+      statusHistory: [
+        { status: 'diproses', message: 'Pesanan diterima. Dukun sedang merapal mantra pembuka...', timestamp: new Date().toISOString() }
+      ]
     };
     var orders = getOrders();
     orders.unshift(newOrder);
