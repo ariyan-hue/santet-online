@@ -53,7 +53,7 @@
 
   <script>
     // ============================
-//  MOCK API — Semua pake localStorage, gak perlu backend!
+//  MOCK API - Semua pake localStorage, gak perlu backend!
 // ============================
 const PRODUCTS_DATA = [{"id":"santet-biasa","name":"Santet Biasa","price":0,"icon":"🌀","deliveryTime":"3-7 hari kerja","tag":"GRATIS","description":"Santet standar. Doa dibacakan AI. Hasil? Tergantung rejeki."},{"id":"santet-express","name":"Santet Express","price":25000,"icon":"⚡","deliveryTime":"1x24 jam","tag":"POPULER","description":"Prioritas! Tracking number eksklusif. Mantan langsung kena sial."},{"id":"santet-premium","name":"Santet Premium","price":75000,"icon":"🕯️","deliveryTime":"6 jam","tag":"BEST SELLER","description":"Dengan lilin + foto target. Dukun partner rapalkan mantra khusus."},{"id":"santet-mantan","name":"Santet Mantan","price":50000,"icon":"💔","deliveryTime":"2 hari","tag":null,"description":"Editors khusus mantan. Bikin dia nyesel selingkuh."},{"id":"santet-rejeki","name":"Santet Rejeki Seret","price":20000,"icon":"💰","deliveryTime":"1-3 hari","tag":"HEMAT","description":"Bikin rejeki target seret. Cocok buat competitor licik."},{"id":"santet-cinta","name":"Santet Cinta","price":30000,"icon":"💕","deliveryTime":"3 hari","tag":null,"description":"Biar doi chat balik. Dijamin baper (atau duit balik)."},{"id":"santet-corporate","name":"Santet Corporate","price":250000,"icon":"🏢","deliveryTime":"5 hari","tag":"CORPORATE","description":"Santet seluruh departemen. Paket komplit buat satu lantai."},{"id":"santet-ultra","name":"Santet Ultimate","price":150000,"icon":"🔥","deliveryTime":"3 jam","tag":"VIP","description":"Dukun level max. Pake ritual lengkap + ayam cemani."}];
 let currentOrder = null;
@@ -136,7 +136,141 @@ async function api(path, options) {
   return { success: false, error: 'Not found' };
 }
 
-function showToast(message, type) {
+const RITUALS = {
+      'santet-biasa': {
+        emoji: '🌀',
+        particles: ['📖','💤','😴','🤷'],
+        texts: ['Membacakan doa AI generasi 3.5...','Santet biasaaaa aja dulu...','Dukun magang sedang belajar...','Hasil? Tergantung rejeki target...'],
+        duration: 1500
+      },
+      'santet-express': {
+        emoji: '⚡',
+        particles: ['💨','⚡','🔥','💫'],
+        texts: ['NGEBUT di alam astral! &#127948;&#65039;&#128168;','Dukun pakai turbo boost...','Santet dikirim prioritas: SIUUU!','Biar cepet, dukun naik knalpot brong...'],
+        duration: 1200
+      },
+      'santet-premium': {
+        emoji: '🕯️',
+        particles: ['🕯️','✨','🙏','📿'],
+        texts: ['Menyiapkan altar lilin premium...','Dukun partner mulai rapal mantra mahal...','Campuran dupa + minyak zafaron...','Ritual VIP: harap hening, dukun lagi trance...'],
+        duration: 2500
+      },
+      'santet-mantan': {
+        emoji: '💔',
+        particles: ['💔','👻','😭','📸'],
+        texts: ['MENYANTET MANTAN! Gas pol!','Dukun baca chat lama target...','Karma dikirim: semoga nyesel seumur hidup','Mantannya lagi apa ya sekarang? Santet aja!'],
+        duration: 2000
+      },
+      'santet-rejeki': {
+        emoji: '💰',
+        particles: ['💸','📉','🚫','😩'],
+        texts: ['Ngerem rejeki target... remmm!','Boncosin target hari ini','Dompet target digunting jin...','Semoga target bangkrut (maap ya)'],
+        duration: 1800
+      },
+      'santet-cinta': {
+        emoji: '💕',
+        particles: ['💕','🥰','💌','🌹'],
+        texts: ['Merapal mantra cinta ala sinetron...','Target dikirimin bayang-bayang doi','Semoga baper, atau duit balik!','Love is in the air... atau santet?'],
+        duration: 2000
+      },
+      'santet-corporate': {
+        emoji: '🏢',
+        particles: ['💼','📊','😤','📉'],
+        texts: ['Nyantet seluruh departemen! rame-rame!','Menyiapkan pesawat gaib untuk 1 lantai...','Paket corporate: bos kena, anak buah kena','Meeting gaib dengan dewan direksi alam astral'],
+        duration: 3000
+      },
+      'santet-ultra': {
+        emoji: '🔥',
+        particles: ['🔥','💀','🦅','⚡'],
+        texts: ['&#9888;&#65039; RITUAL ULTIMATE! Dukun level max ON!','Menyembelih ayam cemani... (tapi boong)','Mantra level dewa: target auto kena sial 7 turunan','&#128293;&#128293;&#128293; FULL POWER! NO MERCY! &#128293;&#128293;&#128293;'],
+        duration: 3000
+      }
+    };
+
+    async function showRitual(productId, duration) {
+      const ritual = RITUALS[productId];
+      if (!ritual) {
+        await showLoading(duration || 1500);
+        return;
+      }
+      const screen = document.getElementById('loadingScreen');
+      const emojiEl = document.getElementById('ritualEmoji');
+      const textEl = document.getElementById('loadingText');
+      const particlesEl = document.getElementById('ritualParticles');
+
+      emojiEl.textContent = ritual.emoji;
+      emojiEl.className = 'ritual-emoji-big ritual-bounce';
+      particlesEl.innerHTML = '';
+      for (let i = 0; i < 15; i++) {
+        const p = document.createElement('span');
+        p.className = 'ritual-particle';
+        p.textContent = ritual.particles[Math.floor(Math.random() * ritual.particles.length)];
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDelay = (Math.random() * 2) + 's';
+        p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+        p.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
+        particlesEl.appendChild(p);
+      }
+      let textIdx = 0;
+      textEl.textContent = ritual.texts[0];
+      const textInterval = setInterval(() => {
+        textIdx = (textIdx + 1) % ritual.texts.length;
+        textEl.textContent = ritual.texts[textIdx];
+      }, 800);
+      screen.classList.add('active');
+      await new Promise(r => setTimeout(r, duration || ritual.duration));
+      clearInterval(textInterval);
+      screen.classList.remove('active');
+      emojiEl.className = 'ritual-emoji-big';
+      particlesEl.innerHTML = '';
+    }
+
+    async function showLoading(duration) {
+      if (!duration) duration = 1500;
+      const screen = document.getElementById('loadingScreen');
+      const emojiEl = document.getElementById('ritualEmoji');
+      const particlesEl = document.getElementById('ritualParticles');
+      const texts = ['Memanggil roh leluhur...','Memanaskan kuali santet...','Membaca kitab kuno...','Menghubungi dukun langganan...','Menyiapkan jin pengirim...','Ngecas ilmu hitam...'];
+      emojiEl.textContent = '🕯️';
+      emojiEl.className = 'ritual-emoji-big';
+      particlesEl.innerHTML = '';
+      const text = document.getElementById('loadingText');
+      text.textContent = texts[Math.floor(Math.random() * texts.length)];
+      screen.classList.add('active');
+      await new Promise(r => setTimeout(r, duration));
+      screen.classList.remove('active');
+    }
+
+    function navigate(page, params) {
+      // Clear any tracking intervals on navigation
+      trackingIntervals.forEach(clearInterval);
+      trackingIntervals = [];
+      window.history.pushState({ page, params }, '', '#' + page);
+      renderPage(page, params);
+    }
+
+    window.addEventListener('popstate', function(e) {
+      const hash = location.hash.slice(1) || 'home';
+      renderPage(hash);
+    });
+
+    async function renderPage(page, params) {
+      await showLoading(800);
+      const container = document.getElementById('pageContent');
+      switch(page) {
+        case 'home': renderHome(container); break;
+        case 'products': renderProducts(container); break;
+        case 'order': renderOrder(container, params); break;
+        case 'order-success': renderOrderSuccess(container, params); break;
+        case 'tracking': renderTrackingForm(container); break;
+        case 'track-result': renderTrackingResult(container, params); break;
+        case 'admin-login': renderAdminLogin(container); break;
+        case 'admin': renderAdmin(container); break;
+        default: renderHome(container);
+      }
+    }
+
+    function showToast(message, type) {
       if (!type) type = 'info';
       const toast = document.getElementById('toast');
       toast.textContent = message;
@@ -251,7 +385,7 @@ function showToast(message, type) {
       ].join('\n') + '</div></section>';
 
       // Render dari embedded dulu — instan!
-      if (true) {
+      if (typeof PRODUCTS_DATA !== 'undefined' && PRODUCTS_DATA && PRODUCTS_DATA.length) {
         products = PRODUCTS_DATA;
         renderProductGrid();
       } else {
