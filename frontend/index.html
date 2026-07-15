@@ -55,13 +55,35 @@
     // ============================
     //  CONFIG
     // ============================
-    const VERCEL_BACKEND = 'https://backend-ct12nlkq1-ariyan-hues-projects.vercel.app';
-    const API_URL = window.API_URL || VERCEL_BACKEND;
+    // API otomatis ke domain yang sama (relatif) atau bisa di-override
+    const API_URL = window.API_URL || 'https://santet-online-api-v2.vercel.app';
     const STORED_API = localStorage.getItem('santet_api_url');
     const BASE_URL = STORED_API || API_URL;
-    console.log('🔮 Santet Online API:', BASE_URL);
+    console.log('🔮 Santet Online API:', BASE_URL || '(same domain)');
 
     let products = [];
+    let EMBEDDED_PRODUCTS = null;
+
+    // ===== FETCH PRODUCTS & EMBED (loading cepat, biar gak loading lama) =====
+    (function loadEmbedded() {
+      var x = new XMLHttpRequest();
+      var url = (STORED_API || API_URL || 'https://santet-online-api-v2.vercel.app') + '/api/products';
+      x.open('GET', url, true);
+      x.onload = function() {
+        try {
+          var d = JSON.parse(x.responseText);
+          if (d && d.success) {
+            EMBEDDED_PRODUCTS = d.data;
+            products = d.data;
+            console.log('🔮 Products loaded:', products.length);
+            // Refresh products grid if visible
+            var grid = document.getElementById('productsGrid');
+            if (grid) renderProductGrid();
+          }
+        } catch(e) {}
+      };
+      x.send();
+    })();
     let currentOrder = null;
     let trackingIntervals = [];
 
@@ -294,6 +316,32 @@
     }
 
     // ===== PRODUCTS =====
+    function renderProductGrid() {
+      var grid = document.getElementById('productsGrid');
+      if (!grid || !products || !products.length) return;
+      grid.innerHTML = products.map(function(p) {
+        var tagHtml = '';
+        if (p.tag) {
+          var cls = 'tag-' + p.tag.toLowerCase().replace(/\s/g, '-');
+          tagHtml = '<span class="product-tag ' + cls + '">' + p.tag + '</span>';
+        }
+        return [
+          '<div class="product-card" onclick="navigate(\'order\', \'' + p.id + '\')">',
+            '<div class="product-card-glow"></div>',
+            '<div class="product-emoji">' + p.icon + '</div>',
+            '<div class="product-tags">',
+              '<span class="product-tag tag-price">' + formatPrice(p.price) + '</span>',
+              tagHtml,
+            '</div>',
+            '<h3 class="product-name">' + p.name + '</h3>',
+            '<p class="product-desc">' + p.description + '</p>',
+            '<div class="product-meta"><span>⏱️ ' + p.deliveryTime + '</span></div>',
+            '<button class="btn btn-primary product-order-btn">Pilih Santet Ini</button>',
+          '</div>'
+        ].join('\n');
+      }).join('\n');
+    }
+
     function renderProducts(container) {
       container.innerHTML = [
         '<section class="products-page">',
@@ -301,37 +349,26 @@
             '<h1 class="section-title">Pilih <span class="gradient-text">Senjata</span> Anda 🔮</h1>',
             '<p class="section-desc">Tinggal pilih, dukun kami yang urus sisanya.</p>',
           '</div>',
-          '<div class="products-grid" id="productsGrid">',
-            '<div class="loading-products">Memuat daftar santet...</div>',
-          '</div>',
-        '</section>'
-      ].join('\n');
+          '<div class="products-grid" id="productsGrid">'
+      ].join('\n') + '</div></section>';
 
+      // Render dari embedded dulu — instan!
+      if (typeof EMBEDDED_PRODUCTS !== 'undefined' && EMBEDDED_PRODUCTS && EMBEDDED_PRODUCTS.length) {
+        products = EMBEDDED_PRODUCTS;
+        renderProductGrid();
+      } else {
+        var pGrid = document.getElementById('productsGrid');
+        if (pGrid) pGrid.innerHTML = '<div class="loading-products">Memuat daftar santet...</div>';
+      }
+
+      // Refresh dari API di background
       api('/products').then(function(d) {
-        if (!d.success) return;
+        if (!d.success || !d.data) return;
         products = d.data;
-        const grid = document.getElementById('productsGrid');
-        grid.innerHTML = d.data.map(function(p) {
-          var tagHtml = '';
-          if (p.tag) {
-            var cls = 'tag-' + p.tag.toLowerCase().replace(/\s/g, '-');
-            tagHtml = '<span class="product-tag ' + cls + '">' + p.tag + '</span>';
-          }
-          return [
-            '<div class="product-card" onclick="navigate(\'order\', \'' + p.id + '\')">',
-              '<div class="product-card-glow"></div>',
-              '<div class="product-emoji">' + p.icon + '</div>',
-              '<div class="product-tags">',
-                '<span class="product-tag tag-price">' + formatPrice(p.price) + '</span>',
-                tagHtml,
-              '</div>',
-              '<h3 class="product-name">' + p.name + '</h3>',
-              '<p class="product-desc">' + p.description + '</p>',
-              '<div class="product-meta"><span>⏱️ ' + p.deliveryTime + '</span></div>',
-              '<button class="btn btn-primary product-order-btn">Pilih Santet Ini</button>',
-            '</div>'
-          ].join('\n');
-        }).join('\n');
+        EMBEDDED_PRODUCTS = d.data;
+        renderProductGrid();
+      }).catch(function() {
+        // Gagal? Gapapa, masih pake embedded
       });
     }
 
