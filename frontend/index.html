@@ -104,6 +104,33 @@ async function api(path, options) {
     saveOrders(orders);
     return { success: true, data: newOrder };
   }
+  // IMPORTANT: Check /track/ BEFORE /orders/ to avoid routing conflict!
+  var tnM = path.match(/^\/track\/(.+)$/);
+  if (tnM) {
+    var sk = tnM[1];
+    var orders3 = getOrders();
+    for (var j = 0; j < orders3.length; j++) {
+      if (orders3[j].id === sk || orders3[j].trackingNumber === sk) {
+        return { success: true, data: orders3[j] };
+      }
+    }
+    return { success: false, error: 'Tracking number tidak ditemukan' };
+  }
+
+  // Same for /orders/track/ path pattern
+  var otnM = path.match(/^\/orders\/track\/(.+)$/);
+  if (otnM) {
+    var otn = otnM[1];
+    var orders4 = getOrders();
+    for (var k = 0; k < orders4.length; k++) {
+      if (orders4[k].id === otn || orders4[k].trackingNumber === otn) {
+        return { success: true, data: orders4[k] };
+      }
+    }
+    return { success: false, error: 'Tracking number tidak ditemukan' };
+  }
+
+  // Now check /orders/:id for PATCH only
   var pm = path.match(/^\/orders\/(.+)$/);
   if (pm && options && options.method === 'PATCH') {
     try { var body2 = JSON.parse(options.body || '{}'); } catch(e) { body2 = {}; }
@@ -121,18 +148,19 @@ async function api(path, options) {
   if (path === '/orders' && (!options || !options.method || options.method === 'GET')) {
     return { success: true, data: getOrders() };
   }
+
+  // GET /orders/:id (by order ID, not tracking)
   var idM = path.match(/^\/orders\/(.+)$/);
-  var tnM = path.match(/^\/track\/(.+)$/);
-  var sk = idM ? idM[1] : (tnM ? tnM[1] : null);
-  if (sk) {
-    var orders3 = getOrders();
-    for (var j = 0; j < orders3.length; j++) {
-      if (orders3[j].id === sk || orders3[j].trackingNumber === sk) {
-        return { success: true, data: orders3[j] };
+  if (idM && (!options || !options.method || options.method === 'GET')) {
+    var oid = idM[1];
+    var orders5 = getOrders();
+    for (var l = 0; l < orders5.length; l++) {
+      if (orders5[l].id === oid) {
+        return { success: true, data: orders5[l] };
       }
     }
-    if (tnM) return { success: false, error: 'Tracking number tidak ditemukan' };
   }
+
   return { success: false, error: 'Not found' };
 }
 
@@ -633,14 +661,35 @@ const RITUALS = {
     }
 
     // ===== TRACKING RESULT — LIVE SIMULATOR! =====
-    function renderTrackingResult(container, data) {
+    async function renderTrackingResult(container, data) {
       // Clear old intervals
       trackingIntervals.forEach(clearInterval);
       trackingIntervals = [];
 
-      const order = (typeof data === 'object' && data !== null) ? data : null;
+      // Accept EITHER order object OR tracking number string
+      var order = null;
+      if (typeof data === 'object' && data !== null && data.trackingNumber) {
+        order = data;
+      } else if (typeof data === 'string') {
+        // Fetch from API
+        var res = await api('/track/' + data.toUpperCase());
+        if (res.success && res.data) {
+          order = res.data;
+        }
+      }
+
       if (!order) {
-        container.innerHTML = '<div class="tracking-error"><h3>Data tidak valid</h3></div>';
+        container.innerHTML = [
+          '<div class="tracking-result">',
+            '<div class="tracking-error">',
+              '<span class="tracking-error-icon">🚫</span>',
+              '<h3>Tracking Tidak Ditemukan</h3>',
+              '<p>Tracking number tidak ditemukan di database santet.</p>',
+              '<p class="tracking-error-hint">Atau mungkin... santetnya kena balik? 👀</p>',
+              '<button class="btn btn-ghost" onclick="navigate(\'tracking\')">🔍 Coba Lagi</button>',
+            '</div>',
+          '</div>'
+        ].join('\n');
         return;
       }
 
