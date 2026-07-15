@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Santet Online — Kirim Santet Digital #1 Indonesia</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-brand" onclick="navigate('home')">
+        <span class="brand-icon">🔮</span>
+        <span class="brand-text">Santet<span class="brand-accent">Online</span></span>
+        <span class="brand-badge">.inc</span>
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="#" onclick="navigate('products')">Produk</a>
+        <a href="#" onclick="navigate('tracking')">Tracking</a>
+        <a href="#" onclick="navigate('admin')">Admin</a>
+      </div>
+      <button class="nav-toggle" onclick="toggleNav()">☰</button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main id="app">
+    <div class="loading-screen" id="loadingScreen">
+      <div class="loading-content">
+        <span class="loading-emoji">🕯️</span>
+        <p class="loading-text" id="loadingText">Memanggil roh leluhur...</p>
+        <div class="loading-bar"><div class="loading-progress"></div></div>
+      </div>
+    </div>
+    <div id="pageContent"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>© 2026 PT. Santet Online Tbk. — <em>"Dari Hati Paling Dalam, Sampai Ke Pesawat Gaib"</em></p>
+      <p class="footer-disclaimer">⚠️ Semua santet adalah parodi dan tidak nyata. Jangan benar-benar dendam, nanti masuk angin.</p>
+    </div>
+  </footer>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ============================
+    //  CONFIGURABLE API URL
+    //  Ubah API_URL ini saat deploy!
+    //  - Local: http://localhost:3000
+    //  - Production: https://santet-api.vercel.app
+    // ============================
+    const API_URL = window.API_URL || 'http://localhost:3000';
+    // Override via localStorage (biar gampang ganti tanpa edit HTML)
+    const STORED_API = localStorage.getItem('santet_api_url');
+    const BASE_URL = STORED_API || API_URL;
+
+    let products = [];
+    let currentOrder = null;
+
+    async function showLoading(duration = 1500) {
+      const screen = document.getElementById('loadingScreen');
+      const texts = [
+        'Memanggil roh leluhur...',
+        'Memanaskan kuali santet...',
+        'Membaca kitab kuno...',
+        'Menghubungi dukun langganan...',
+        'Menyiapkan jin pengirim...',
+        'Ngecas ilmu hitam...',
+      ];
+      const text = document.getElementById('loadingText');
+      text.textContent = texts[Math.floor(Math.random() * texts.length)];
+      screen.classList.add('active');
+      await new Promise(r => setTimeout(r, duration));
+      screen.classList.remove('active');
+    }
+
+    function navigate(page, params) {
+      window.history.pushState({ page, params }, '', '#' + page);
+      renderPage(page, params);
+    }
+
+    window.addEventListener('popstate', (e) => {
+      const hash = location.hash.slice(1) || 'home';
+      renderPage(hash);
+    });
+
+    async function renderPage(page, params) {
+      await showLoading(800);
+      const container = document.getElementById('pageContent');
+      switch(page) {
+        case 'home': renderHome(container); break;
+        case 'products': renderProducts(container); break;
+        case 'order': renderOrder(container, params); break;
+        case 'tracking': renderTrackingForm(container); break;
+        case 'track-result': renderTrackingResult(container, params); break;
+        case 'admin': renderAdmin(container); break;
+        default: renderHome(container);
+      }
+    }
+
+    // ===== API HELPERS =====
+    async function api(path, options = {}) {
+      try {
+        const res = await fetch(BASE_URL + '/api' + path, {
+          headers: { 'Content-Type': 'application/json', ...options.headers },
+          ...options
+        });
+        return res.json();
+      } catch (e) {
+        showToast('❌ Gagal konek ke server santet. Dukunnya offline?', 'error');
+        return { success: false };
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast toast-' + type + ' active';
+      setTimeout(() => toast.classList.remove('active'), 3500);
+    }
+
+    function formatPrice(price) {
+      if (price === 0) return 'GRATIS';
+      return 'Rp ' + price.toLocaleString('id-ID');
+    }
+
+    // ===== HOME =====
+    function renderHome(container) {
+      api('/counter').then(d => {
+        if (d.success) document.getElementById('santetCounter').textContent = d.data.count.toLocaleString();
+      });
+      container.innerHTML = `
+        <section class="hero">
+          <div class="hero-content">
+            <span class="hero-emoji">🔮</span>
+            <h1 class="hero-title">Sudah Siap <span class="gradient-text">Nyantet</span> Hari Ini?</h1>
+            <p class="hero-subtitle">Platform pengiriman santet digital #1 di Indonesia. Dari hati paling dalam, sampai ke pesawat gaib.</p>
+            <div class="hero-counter">
+              <span class="counter-label">Santet Terkirim:</span>
+              <span class="counter-number" id="santetCounter">1.337</span>
+            </div>
+            <div class="hero-cta">
+              <button class="btn btn-primary btn-lg" onclick="navigate('products')">🔮 Santet Sekarang!</button>
+              <button class="btn btn-ghost btn-lg" onclick="navigate('tracking')">📦 Lacak Santet</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="testimonials">
+          <h2 class="section-title">Apa Kata <span class="gradient-text">Mereka</span>?</h2>
+          <div class="testimonial-grid">
+            <div class="testimonial-card">
+              <div class="testimonial-avatar">😤</div>
+              <p class="testimonial-text">"Santet Mantan beneran manjur! Dua hari setelah order, doi update status 'rindu masa lalu'. Puas banget!"</p>
+              <p class="testimonial-name">— Sari, 24</p>
+            </div>
+            <div class="testimonial-card">
+              <div class="testimonial-avatar">😈</div>
+              <p class="testimonial-text">"Santet Corporate saya kasih ke bos. Sekarang dia lupa password email tiap hari. Worth every penny!"</p>
+              <p class="testimonial-name">— Adi, 31</p>
+            </div>
+            <div class="testimonial-card">
+              <div class="testimonial-avatar">🤣</div>
+              <p class="testimonial-text">"Santet Biasa (gratis) aja udah ampuh. Temen gue tiba-tiba kena step pada lagu yang diputer terus. WKWK"</p>
+              <p class="testimonial-name">— Budi, 19</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="features">
+          <h2 class="section-title">Kenapa Pilih <span class="gradient-text">Kami</span>?</h2>
+          <div class="features-grid">
+            <div class="feature-card">
+              <span class="feature-icon">🚀</span>
+              <h3>Pengiriman Cepat</h3>
+              <p>Via jalur astral, angin, api, air, dan mimpi.</p>
+            </div>
+            <div class="feature-card">
+              <span class="feature-icon">📱</span>
+              <h3>Tracking Realtime</h3>
+              <p>Pantau perjalanan santet Anda 24 jam via portal gaib.</p>
+            </div>
+            <div class="feature-card">
+              <span class="feature-icon">🛡️</span>
+              <h3>Garansi Pulas</h3>
+              <p>Santet tidak sampai? Klaim refund — dukun kami yang di-pulaskan!</p>
+            </div>
+            <div class="feature-card">
+              <span class="feature-icon">🤫</span>
+              <h3>Identitas Aman</h3>
+              <p>Target tidak akan tahu siapa pengirimnya. (Mungkin.)</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="how-it-works">
+          <h2 class="section-title">Cara <span class="gradient-text">Nyantet</span></h2>
+          <div class="steps">
+            <div class="step">
+              <span class="step-number">1</span>
+              <h3>Pilih Jenis Santet</h3>
+              <p>Santet Biasa sampai Ultimate — ada yang gratisan juga!</p>
+            </div>
+            <div class="step-connector">➜</div>
+            <div class="step">
+              <span class="step-number">2</span>
+              <h3>Masukkan Data Target</h3>
+              <p>Nama, alasan, upload foto — biar dukun makin greget.</p>
+            </div>
+            <div class="step-connector">➜</div>
+            <div class="step">
+              <span class="step-number">3</span>
+              <h3>Bayar (Kalau Berbayar)</h3>
+              <p>Santet gratis tetep jalan kok. Yang bayar dapet prioritas.</p>
+            </div>
+            <div class="step-connector">➜</div>
+            <div class="step">
+              <span class="step-number">4</span>
+              <h3>Pantau Live Tracking!</h3>
+              <p>Dapat nomor tracking, pantau ritual dukun secara realtime.</p>
+            </div>
+          </div>
+        </section>
+      `;
+      animateCounter();
+    }
+
+    function animateCounter() {
+      setInterval(async () => {
+        const d = await api('/counter');
+        if (d.success) {
+          const el = document.getElementById('santetCounter');
+          if (el) el.textContent = d.data.count.toLocaleString();
+        }
+      }, 5000);
+    }
+
+    // ===== PRODUCTS =====
+    function renderProducts(container) {
+      container.innerHTML = `
+        <section class="products-page">
+          <div class="products-header">
+            <h1 class="section-title">Pilih <span class="gradient-text">Senjata</span> Anda 🔮</h1>
+            <p class="section-desc">Tinggal pilih, dukun kami yang urus sisanya.</p>
+          </div>
+          <div class="products-grid" id="productsGrid">
+            <div class="loading-products">Memuat daftar santet...</div>
+          </div>
+        </section>
+      `;
+
+      api('/products').then(d => {
+        if (!d.success) return;
+        products = d.data;
+        const grid = document.getElementById('productsGrid');
+        grid.innerHTML = d.data.map(p => `
+          <div class="product-card" onclick="navigate('order', '${p.id}')">
+            <div class="product-card-glow"></div>
+            <div class="product-emoji">${p.icon}</div>
+            <div class="product-tags">
+              <span class="product-tag tag-price">${formatPrice(p.price)}</span>
+              ${p.tag ? `<span class="product-tag tag-${p.tag.toLowerCase().replace(/\s/g, '-')}">${p.tag}</span>` : ''}
+            </div>
+            <h3 class="product-name">${p.name}</h3>
+            <p class="product-desc">${p.description}</p>
+            <div class="product-meta">
+              <span>⏱️ ${p.deliveryTime}</span>
+            </div>
+            <button class="btn btn-primary product-order-btn">Pilih Santet Ini</button>
+          </div>
+        `).join('');
+      });
+    }
+
+    // ===== ORDER =====
+    function renderOrder(container, productId) {
+      const product = products.find(p => p.id === productId);
+      if (!product) {
+        container.innerHTML = '<div class="error-page"><h2>Produk tidak ditemukan!</h2><button class="btn btn-primary" onclick="navigate(\'products\')">Kembali</button></div>';
+        return;
+      }
+
+      currentOrder = { productId };
+      container.innerHTML = `
+        <section class="order-page">
+          <div class="order-container">
+            <div class="order-header">
+              <span class="order-product-icon">${product.icon}</span>
+              <h1>Pesan ${product.name}</h1>
+              <p class="order-price">${formatPrice(product.price)}</p>
+            </div>
+            <form id="orderForm" class="order-form" onsubmit="submitOrder(event)">
+              <div class="form-group">
+                <label class="form-label">🐱 Nama Target <span class="required">*</span></label>
+                <input type="text" class="form-input" id="targetName" placeholder="Contoh: si Asep, Mantan gue, Bos Galak" required>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">😤 Alasan Nyantet <span class="required">*</span></label>
+                <textarea class="form-input form-textarea" id="reason" placeholder="Ceritain kenapa dia pantas kena santet..." required></textarea>
+                <small class="form-hint">Bikin lucu, nanti dibacain dukun pas ritual.</small>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">📸 Foto Target (Opsional)</label>
+                <input type="text" class="form-input" id="photo" placeholder="URL foto target (kalau ada)">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">🌊 Metode Pengiriman <span class="required">*</span></label>
+                <div class="delivery-grid">
+                  <label class="delivery-option">
+                    <input type="radio" name="delivery" value="Angin" required>
+                    <span class="delivery-content">
+                      <span class="delivery-icon">🌬️</span>
+                      <span class="delivery-name">Angin</span>
+                      <span class="delivery-desc">Cepat & tak terbaca</span>
+                    </span>
+                  </label>
+                  <label class="delivery-option">
+                    <input type="radio" name="delivery" value="Air">
+                    <span class="delivery-content">
+                      <span class="delivery-icon">💧</span>
+                      <span class="delivery-name">Air</span>
+                      <span class="delivery-desc">Mengalir halus</span>
+                    </span>
+                  </label>
+                  <label class="delivery-option">
+                    <input type="radio" name="delivery" value="Api">
+                    <span class="delivery-content">
+                      <span class="delivery-icon">🔥</span>
+                      <span class="delivery-name">Api</span>
+                      <span class="delivery-desc">Panas & langsung</span>
+                    </span>
+                  </label>
+                  <label class="delivery-option">
+                    <input type="radio" name="delivery" value="Mimpi">
+                    <span class="delivery-content">
+                      <span class="delivery-icon">💤</span>
+                      <span class="delivery-name">Mimpi</span>
+                      <span class="delivery-desc">Nunggu tidur</span>
+                    </span>
+                  </label>
+                  <label class="delivery-option">
+                    <input type="radio" name="delivery" value="Gethuk">
+                    <span class="delivery-content">
+                      <span class="delivery-icon">🍡</span>
+                      <span class="delivery-name">Gethuk</span>
+                      <span class="delivery-desc">Dicampur gethuk</span>
+                    </span>
+                  </label>
+                  <label class="delivery-option">
+                    <input type="radio" name="delivery" value="WiFi">
+                    <span class="delivery-content">
+                      <span class="delivery-icon">📶</span>
+                      <span class="delivery-name">WiFi</span>
+                      <span class="delivery-desc">Digital native</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-payment" id="paymentSection" style="${product.price > 0 ? '' : 'display:none'}">
+                <h3>💳 Pembayaran</h3>
+                <p class="payment-note"><em>Simulasi pembayaran — kartu kredit apapun diterima. Karena ini parodi 😉</em></p>
+                <div class="form-group">
+                  <label class="form-label">Nomor Kartu</label>
+                  <input type="text" class="form-input" placeholder="1234 5678 9012 3456" value="4242 4242 4242 4242">
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Masa Berlaku</label>
+                    <input type="text" class="form-input" placeholder="12/28" value="12/28">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">CVV</label>
+                    <input type="text" class="form-input" placeholder="123" value="123">
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg btn-full" id="orderSubmitBtn">
+                🔮 Kirim Santet!
+              </button>
+            </form>
+          </div>
+        </section>
+      `;
+    }
+
+    async function submitOrder(e) {
+      e.preventDefault();
+      const btn = document.getElementById('orderSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '🕯️ Merapal mantra...';
+
+      const deliveryInput = document.querySelector('input[name="delivery"]:checked');
+
+      const body = {
+        productId: currentOrder.productId,
+        targetName: document.getElementById('targetName').value,
+        reason: document.getElementById('reason').value,
+        deliveryMethod: deliveryInput ? deliveryInput.value : 'Angin',
+        photo: document.getElementById('photo').value || null
+      };
+
+      await showLoading(2000);
+
+      const result = await api('/orders', {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+
+      if (result.success) {
+        showToast('✨ Santet berhasil dikirim! Tracking: ' + result.data.trackingNumber, 'success');
+        navigate('track-result', result.data.trackingNumber);
+      } else {
+        showToast('❌ ' + result.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '🔮 Kirim Santet!';
+      }
+    }
+
+    // ===== TRACKING =====
+    function renderTrackingForm(container) {
+      container.innerHTML = `
+        <section class="tracking-page">
+          <div class="tracking-container">
+            <div class="tracking-header">
+              <span class="tracking-icon">📦</span>
+              <h1>Lacak <span class="gradient-text">Santet</span></h1>
+              <p>Masukkan nomor tracking untuk melihat status terkini santet Anda.</p>
+            </div>
+            <form class="tracking-form" onsubmit="trackOrder(event)">
+              <div class="form-group">
+                <label class="form-label">🔍 Nomor Tracking</label>
+                <input type="text" class="form-input tracking-input" id="trackingInput" placeholder="Contoh: SNT-ABCD123" required>
+              </div>
+              <button type="submit" class="btn btn-primary btn-lg btn-full">Lacak ➜</button>
+            </form>
+            <div id="trackingResult"></div>
+          </div>
+        </section>
+      `;
+    }
+
+    async function trackOrder(e) {
+      e.preventDefault();
+      const tn = document.getElementById('trackingInput').value.trim().toUpperCase();
+      if (!tn) return;
+
+      await showLoading(1200);
+      const result = await api('/orders/track/' + tn);
+      const container = document.getElementById('trackingResult');
+
+      if (result.success) {
+        renderTrackingResult(container, result.data);
+      } else {
+        container.innerHTML = `
+          <div class="tracking-error">
+            <span class="tracking-error-icon">🚫</span>
+            <h3>Tracking Tidak Ditemukan</h3>
+            <p>${result.message}</p>
+            <p class="tracking-error-hint">Atau mungkin... santetnya kena balik? 👀</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderTrackingResult(container, data) {
+      const order = typeof data === 'string' ? null : data;
+      if (!order) {
+        container.innerHTML = '<div class="tracking-error"><h3>Data tidak valid</h3></div>';
+        return;
+      }
+
+      const statusIcons = { diproses: '🕯️', dikirim: '🚀', 'dalam-perjalanan': '🌀', selesai: '✅', gagal: '💀' };
+      const statusColors = { diproses: 'warning', dikirim: 'info', 'dalam-perjalanan': 'info', selesai: 'success', gagal: 'danger' };
+      const progressPct = { diproses: 20, dikirim: 45, 'dalam-perjalanan': 70, selesai: 100, gagal: 100 };
+
+      const content = document.createElement('div');
+      content.className = 'tracking-result';
+      content.innerHTML = `
+        <div class="tracking-result-header">
+          <h2>Status Santet</h2>
+        </div>
+        <div class="tracking-info-grid">
+          <div class="tracking-info-item">
+            <span class="info-label">Tracking</span>
+            <span class="info-value tracking-number">${order.trackingNumber}</span>
+          </div>
+          <div class="tracking-info-item">
+            <span class="info-label">Jenis Santet</span>
+            <span class="info-value">${order.productName}</span>
+          </div>
+          <div class="tracking-info-item">
+            <span class="info-label">Target</span>
+            <span class="info-value">${order.targetName}</span>
+          </div>
+          <div class="tracking-info-item">
+            <span class="info-label">Status</span>
+            <span class="badge badge-${statusColors[order.status] || 'info'}">${order.status.replace(/-/g, ' ')}</span>
+          </div>
+        </div>
+
+        <div class="tracking-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${progressPct[order.status] || 20}%"></div>
+          </div>
+          <div class="progress-steps">
+            <span class="progress-step ${order.status === 'diproses' || progressPct[order.status] >= 20 ? 'active' : ''}">🕯️ Diproses</span>
+            <span class="progress-step ${order.status === 'dikirim' || order.status === 'dalam-perjalanan' || order.status === 'selesai' ? 'active' : ''}">🚀 Dikirim</span>
+            <span class="progress-step ${order.status === 'dalam-perjalanan' || order.status === 'selesai' ? 'active' : ''}">🌀 Perjalanan</span>
+            <span class="progress-step ${order.status === 'selesai' ? 'active' : ''}">✅ Sampai</span>
+          </div>
+        </div>
+
+        <div class="tracking-timeline">
+          <h3>Riwayat Perjalanan Santet</h3>
+          ${order.statusHistory.map(h => `
+            <div class="timeline-item">
+              <div class="timeline-icon">${statusIcons[h.status] || '📌'}</div>
+              <div class="timeline-content">
+                <p class="timeline-message">${h.message}</p>
+                <small class="timeline-time">${new Date(h.timestamp).toLocaleString('id-ID')}</small>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="tracking-actions">
+          <button class="btn btn-primary" onclick="navigate('products')">🔮 Santet Lagi!</button>
+          <button class="btn btn-ghost" onclick="navigate('tracking')">📦 Lacak Lain</button>
+        </div>
+      `;
+
+      container.innerHTML = '';
+      container.appendChild(content);
+    }
+
+    // ===== ADMIN =====
+    function renderAdmin(container) {
+      container.innerHTML = `
+        <section class="admin-page">
+          <div class="admin-header">
+            <span class="admin-icon">⚙️</span>
+            <h1>Dashboard <span class="gradient-text">Dukun</span></h1>
+            <p class="admin-desc">Panel rahasia para dukun — pantau semua santet yang masuk.</p>
+            <small class="admin-warning">🔐 Hanya untuk dukun level 3 ke atas.</small>
+          </div>
+          <div class="admin-orders" id="adminOrders">
+            <div class="loading-products">Memuat data santet...</div>
+          </div>
+        </section>
+      `;
+      loadAdminOrders();
+    }
+
+    async function loadAdminOrders() {
+      const result = await api('/orders');
+      const container = document.getElementById('adminOrders');
+      if (!result.success) {
+        container.innerHTML = '<p>Gagal memuat data santet. Mungkin kena serangan santet balik.</p>';
+        return;
+      }
+
+      if (result.data.length === 0) {
+        container.innerHTML = '<div class="admin-empty"><span>📭</span><h3>Belum ada santet masuk</h3><p>Yuk, santet seseorang! 👀</p></div>';
+        return;
+      }
+
+      container.innerHTML = result.data.map(o => `
+        <div class="admin-order-card">
+          <div class="admin-order-header">
+            <span class="admin-order-id">#${o.id}</span>
+            <span class="badge badge-${o.status === 'selesai' ? 'success' : o.status === 'gagal' ? 'danger' : 'warning'}">${o.status.replace(/-/g, ' ')}</span>
+          </div>
+          <div class="admin-order-body">
+            <div class="admin-order-info">
+              <p><strong>Tracking:</strong> ${o.trackingNumber}</p>
+              <p><strong>Produk:</strong> ${o.productName}</p>
+              <p><strong>Target:</strong> ${o.targetName}</p>
+              <p><strong>Alasan:</strong> ${o.reason}</p>
+              <p><strong>Metode:</strong> ${o.deliveryMethod}</p>
+              <p><strong>Waktu:</strong> ${new Date(o.createdAt).toLocaleString('id-ID')}</p>
+            </div>
+            <div class="admin-order-actions">
+              <select class="form-input admin-status-select" onchange="updateOrderStatus('${o.id}', this.value)">
+                <option value="diproses" ${o.status === 'diproses' ? 'selected' : ''}>🕯️ Diproses</option>
+                <option value="dikirim" ${o.status === 'dikirim' ? 'selected' : ''}>🚀 Dikirim</option>
+                <option value="dalam-perjalanan" ${o.status === 'dalam-perjalanan' ? 'selected' : ''}>🌀 Dalam Perjalanan</option>
+                <option value="selesai" ${o.status === 'selesai' ? 'selected' : ''}>✅ Selesai</option>
+                <option value="gagal" ${o.status === 'gagal' ? 'selected' : ''}>💀 Gagal</option>
+              </select>
+              <button class="btn btn-sm btn-danger" onclick="showToast('Santet dibatalkan! Dukun dihukum push up 50x.')">🛑 Batal</button>
+            </div>
+          </div>
+          <div class="admin-order-footer">
+            <small>Dibuat: ${new Date(o.createdAt).toLocaleString('id-ID')}</small>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function updateOrderStatus(orderId, status) {
+      const result = await api('/orders/' + orderId, {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      });
+      if (result.success) {
+        showToast('✅ Status santet diubah ke: ' + status.replace(/-/g, ' '), 'success');
+      } else {
+        showToast('❌ Gagal update status', 'error');
+      }
+    }
+
+    function toggleNav() {
+      document.getElementById('navLinks').classList.toggle('active');
+    }
+
+    // ===== INIT =====
+    const hash = location.hash.slice(1) || 'home';
+    renderPage(hash);
+  </script>
+</body>
+</html>
