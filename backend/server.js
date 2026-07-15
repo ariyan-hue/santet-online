@@ -33,6 +33,13 @@ if (!fs.existsSync(ORDERS_FILE)) fs.writeFileSync(ORDERS_FILE, '[]');
 app.use(cors());
 app.use(express.json());
 
+// Serve frontend static files (local dev convenience)
+const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
+if (fs.existsSync(FRONTEND_DIR)) {
+  app.use(express.static(FRONTEND_DIR));
+  console.log(`📄 Serving frontend dari ${FRONTEND_DIR}`);
+}
+
 // ============ API ROUTES ============
 
 // GET /api/products
