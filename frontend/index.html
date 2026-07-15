@@ -52,106 +52,90 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    
     // ============================
-    //  MOCK API — Semua pake localStorage, gak perlu backend!
-    // ============================
-    const PRODUCTS_DATA = [{"id":"santet-biasa","name":"Santet Biasa","price":0,"icon":"🌀","deliveryTime":"3-7 hari kerja","tag":"GRATIS","description":"Santet standar. Doa dibacakan AI. Hasil? Tergantung rejeki."},{"id":"santet-express","name":"Santet Express","price":25000,"icon":"⚡","deliveryTime":"1x24 jam","tag":"POPULER","description":"Prioritas! Tracking number eksklusif. Mantan langsung kena sial."},{"id":"santet-premium","name":"Santet Premium","price":75000,"icon":"🕯️","deliveryTime":"6 jam","tag":"BEST SELLER","description":"Dengan lilin + foto target. Dukun partner rapalkan mantra khusus."},{"id":"santet-mantan","name":"Santet Mantan","price":50000,"icon":"💔","deliveryTime":"2 hari","tag":null,"description":"Editors khusus mantan. Bikin dia nyesel selingkuh."},{"id":"santet-rejeki","name":"Santet Rejeki Seret","price":20000,"icon":"💰","deliveryTime":"1-3 hari","tag":"HEMAT","description":"Bikin rejeki target seret. Cocok buat competitor licik."},{"id":"santet-cinta","name":"Santet Cinta","price":30000,"icon":"💕","deliveryTime":"3 hari","tag":null,"description":"Biar doi chat balik. Dijamin baper (atau duit balik)."},{"id":"santet-corporate","name":"Santet Corporate","price":250000,"icon":"🏢","deliveryTime":"5 hari","tag":"CORPORATE","description":"Santet seluruh departemen. Paket komplit buat satu lantai."},{"id":"santet-ultra","name":"Santet Ultimate","price":150000,"icon":"🔥","deliveryTime":"3 jam","tag":"VIP","description":"Dukun level max. Pake ritual lengkap + ayam cemani."}];
-    let currentOrder = null;
-    let trackingIntervals = [];
+//  MOCK API — Semua pake localStorage, gak perlu backend!
+// ============================
+const PRODUCTS_DATA = [{"id":"santet-biasa","name":"Santet Biasa","price":0,"icon":"🌀","deliveryTime":"3-7 hari kerja","tag":"GRATIS","description":"Santet standar. Doa dibacakan AI. Hasil? Tergantung rejeki."},{"id":"santet-express","name":"Santet Express","price":25000,"icon":"⚡","deliveryTime":"1x24 jam","tag":"POPULER","description":"Prioritas! Tracking number eksklusif. Mantan langsung kena sial."},{"id":"santet-premium","name":"Santet Premium","price":75000,"icon":"🕯️","deliveryTime":"6 jam","tag":"BEST SELLER","description":"Dengan lilin + foto target. Dukun partner rapalkan mantra khusus."},{"id":"santet-mantan","name":"Santet Mantan","price":50000,"icon":"💔","deliveryTime":"2 hari","tag":null,"description":"Editors khusus mantan. Bikin dia nyesel selingkuh."},{"id":"santet-rejeki","name":"Santet Rejeki Seret","price":20000,"icon":"💰","deliveryTime":"1-3 hari","tag":"HEMAT","description":"Bikin rejeki target seret. Cocok buat competitor licik."},{"id":"santet-cinta","name":"Santet Cinta","price":30000,"icon":"💕","deliveryTime":"3 hari","tag":null,"description":"Biar doi chat balik. Dijamin baper (atau duit balik)."},{"id":"santet-corporate","name":"Santet Corporate","price":250000,"icon":"🏢","deliveryTime":"5 hari","tag":"CORPORATE","description":"Santet seluruh departemen. Paket komplit buat satu lantai."},{"id":"santet-ultra","name":"Santet Ultimate","price":150000,"icon":"🔥","deliveryTime":"3 jam","tag":"VIP","description":"Dukun level max. Pake ritual lengkap + ayam cemani."}];
+let currentOrder = null;
+let trackingIntervals = [];
 
-    function generateTN() {
-      return 'SNT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+function generateTN() {
+  return 'SNT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+}
+
+function getOrders() {
+  try { return JSON.parse(localStorage.getItem('santet_orders')) || []; } catch(e) { return []; }
+}
+
+function saveOrders(orders) {
+  localStorage.setItem('santet_orders', JSON.stringify(orders));
+}
+
+function mockDelay() {
+  return new Promise(function(r) { setTimeout(r, 50 + Math.random() * 150); });
+}
+
+async function api(path, options) {
+  await mockDelay();
+  if (path === '/products' && (!options || !options.method || options.method === 'GET')) {
+    return { success: true, data: PRODUCTS_DATA };
+  }
+  if (path === '/counter') {
+    var count = 69420 + getOrders().length;
+    return { success: true, data: { count: count } };
+  }
+  if (path === '/orders' && options && options.method === 'POST') {
+    try { var body = JSON.parse(options.body || '{}'); } catch(e) { body = {}; }
+    var newOrder = {
+      id: 'ord_' + Date.now().toString(36) + Math.random().toString(36).substring(2,6),
+      trackingNumber: generateTN(),
+      productId: body.productId || '',
+      productName: body.productName || '',
+      targetName: body.targetName || '',
+      senderName: body.senderName || '',
+      deliveryMethod: body.deliveryMethod || 'biasa',
+      status: 'diproses',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      progress: 0
+    };
+    var orders = getOrders();
+    orders.unshift(newOrder);
+    saveOrders(orders);
+    return { success: true, data: newOrder };
+  }
+  var pm = path.match(/^\/orders\/(.+)$/);
+  if (pm && options && options.method === 'PATCH') {
+    try { var body2 = JSON.parse(options.body || '{}'); } catch(e) { body2 = {}; }
+    var orders2 = getOrders();
+    for (var i = 0; i < orders2.length; i++) {
+      if (orders2[i].id === pm[1] || orders2[i].trackingNumber === pm[1]) {
+        orders2[i].status = body2.status || orders2[i].status;
+        orders2[i].updatedAt = new Date().toISOString();
+        saveOrders(orders2);
+        return { success: true, data: orders2[i] };
+      }
     }
-
-    function getOrders() {
-      try { return JSON.parse(localStorage.getItem('santet_orders')) || []; } catch(e) { return []; }
+    return { success: false, error: 'Order tidak ditemukan' };
+  }
+  if (path === '/orders' && (!options || !options.method || options.method === 'GET')) {
+    return { success: true, data: getOrders() };
+  }
+  var idM = path.match(/^\/orders\/(.+)$/);
+  var tnM = path.match(/^\/track\/(.+)$/);
+  var sk = idM ? idM[1] : (tnM ? tnM[1] : null);
+  if (sk) {
+    var orders3 = getOrders();
+    for (var j = 0; j < orders3.length; j++) {
+      if (orders3[j].id === sk || orders3[j].trackingNumber === sk) {
+        return { success: true, data: orders3[j] };
+      }
     }
+    if (tnM) return { success: false, error: 'Tracking number tidak ditemukan' };
+  }
+  return { success: false, error: 'Not found' };
+}
 
-    function saveOrders(orders) {
-      localStorage.setItem('santet_orders', JSON.stringify(orders));
-    }
-
-    function mockDelay() {
-      return new Promise(function(r) { setTimeout(r, 100 + Math.random() * 200); });
-    }
-
-    async function api(path, options) {
-      await mockDelay();
-
-      // GET /products
-      if (path === '/products' && (!options || !options.method || options.method === 'GET')) {
-        return { success: true, data: PRODUCTS_DATA };
-      }
-
-      // GET /counter
-      if (path === '/counter') {
-        var count = 69420 + getOrders().length;
-        return { success: true, data: { count: count } };
-      }
-
-      // POST /orders
-      if (path === '/orders' && options && options.method === 'POST') {
-        try {
-          var body = JSON.parse(options.body || '{}');
-        } catch(e) { body = {}; }
-        var newOrder = {
-          id: 'ord_' + Date.now().toString(36) + Math.random().toString(36).substring(2,6),
-          trackingNumber: generateTN(),
-          productId: body.productId || '',
-          productName: body.productName || '',
-          targetName: body.targetName || '',
-          senderName: body.senderName || '',
-          deliveryMethod: body.deliveryMethod || 'biasa',
-          status: 'diproses',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          progress: 0
-        };
-        var orders = getOrders();
-        orders.unshift(newOrder);
-        saveOrders(orders);
-        return { success: true, data: newOrder };
-      }
-
-      // PATCH /orders/:id (update status)
-      var patchMatch = null;
-      if ((patchMatch = path.match(/^\/orders\/(.+)$/)) && options && options.method === 'PATCH') {
-        var orderId2 = patchMatch[1];
-        try { var body2 = JSON.parse(options.body || '{}'); } catch(e) { body2 = {}; }
-        var orders2 = getOrders();
-        for (var i = 0; i < orders2.length; i++) {
-          if (orders2[i].id === orderId2 || orders2[i].trackingNumber === orderId2) {
-            orders2[i].status = body2.status || orders2[i].status;
-            orders2[i].updatedAt = new Date().toISOString();
-            saveOrders(orders2);
-            return { success: true, data: orders2[i] };
-          }
-        }
-        return { success: false, error: 'Order tidak ditemukan' };
-      }
-
-      // GET /orders (admin — all)
-      if (path === '/orders' && (!options || !options.method || options.method === 'GET')) {
-        return { success: true, data: getOrders() };
-      }
-
-      // GET /orders/:id OR /track/:tn
-      var idMatch = path.match(/^\/orders\/(.+)$/);
-      var tnMatch = path.match(/^\/track\/(.+)$/);
-      var searchKey = idMatch ? idMatch[1] : (tnMatch ? tnMatch[1] : null);
-      if (searchKey) {
-        var orders3 = getOrders();
-        for (var j = 0; j < orders3.length; j++) {
-          if (orders3[j].id === searchKey || orders3[j].trackingNumber === searchKey) {
-            return { success: true, data: orders3[j] };
-          }
-        }
-        if (tnMatch) return { success: false, error: 'Tracking number tidak ditemukan' };
-      }
-
-      return { success: false, error: 'Not found' };
-    }
 function showToast(message, type) {
       if (!type) type = 'info';
       const toast = document.getElementById('toast');
