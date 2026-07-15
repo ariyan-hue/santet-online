@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Santet Online — Kirim Santet Digital #1 Indonesia</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-brand" onclick="event.preventDefault();navigate('home')">
+        <span class="brand-icon">🔮</span>
+        <span class="brand-text">Santet<span class="brand-accent">Online</span></span>
+        <span class="brand-badge">.inc</span>
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="#" onclick="event.preventDefault();navigate('products')">Produk</a>
+        <a href="#" onclick="event.preventDefault();navigate('tracking')">Tracking</a>
+        <a href="#" onclick="event.preventDefault();navigate('admin-login')">Admin</a>
+      </div>
+      <button class="nav-toggle" onclick="toggleNav()">☰</button>
+    </div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main id="app">
+    <div class="loading-screen" id="loadingScreen">
+      <div class="loading-content">
+        <div class="ritual-animation" id="ritualAnimation">
+          <div class="ritual-emoji-big" id="ritualEmoji">🕯️</div>
+          <div class="ritual-particles" id="ritualParticles"></div>
+        </div>
+        <p class="loading-text" id="loadingText">Memanggil roh leluhur...</p>
+        <div class="loading-bar"><div class="loading-progress"></div></div>
+      </div>
+    </div>
+    <div id="pageContent"></div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 PT. Santet Online Tbk. &mdash; <em>"Dari Hati Paling Dalam, Sampai Ke Pesawat Gaib"</em></p>
+      <p class="footer-disclaimer">&#9888;&#65039; Semua santet adalah parodi dan tidak nyata. Jangan benar-benar dendam, nanti masuk angin.</p>
+    </div>
+  </footer>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // ============================
+//  MOCK API - Semua pake localStorage, gak perlu backend!
+// ============================
+const PRODUCTS_DATA = [{"id":"santet-biasa","name":"Santet Biasa","price":0,"icon":"🌀","deliveryTime":"3-7 hari kerja","tag":"GRATIS","description":"Santet standar. Doa dibacakan AI. Hasil? Tergantung rejeki."},{"id":"santet-express","name":"Santet Express","price":25000,"icon":"⚡","deliveryTime":"1x24 jam","tag":"POPULER","description":"Prioritas! Tracking number eksklusif. Mantan langsung kena sial."},{"id":"santet-premium","name":"Santet Premium","price":75000,"icon":"🕯️","deliveryTime":"6 jam","tag":"BEST SELLER","description":"Dengan lilin + foto target. Dukun partner rapalkan mantra khusus."},{"id":"santet-mantan","name":"Santet Mantan","price":50000,"icon":"💔","deliveryTime":"2 hari","tag":null,"description":"Editors khusus mantan. Bikin dia nyesel selingkuh."},{"id":"santet-rejeki","name":"Santet Rejeki Seret","price":20000,"icon":"💰","deliveryTime":"1-3 hari","tag":"HEMAT","description":"Bikin rejeki target seret. Cocok buat competitor licik."},{"id":"santet-cinta","name":"Santet Cinta","price":30000,"icon":"💕","deliveryTime":"3 hari","tag":null,"description":"Biar doi chat balik. Dijamin baper (atau duit balik)."},{"id":"santet-corporate","name":"Santet Corporate","price":250000,"icon":"🏢","deliveryTime":"5 hari","tag":"CORPORATE","description":"Santet seluruh departemen. Paket komplit buat satu lantai."},{"id":"santet-ultra","name":"Santet Ultimate","price":150000,"icon":"🔥","deliveryTime":"3 jam","tag":"VIP","description":"Dukun level max. Pake ritual lengkap + ayam cemani."}];
+let currentOrder = null;
+let trackingIntervals = [];
+
+function generateTN() {
+  return 'SNT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+}
+
+function getOrders() {
+  try { return JSON.parse(localStorage.getItem('santet_orders')) || []; } catch(e) { return []; }
+}
+
+function saveOrders(orders) {
+  localStorage.setItem('santet_orders', JSON.stringify(orders));
+}
+
+function mockDelay() {
+  return new Promise(function(r) { setTimeout(r, 50 + Math.random() * 150); });
+}
+
+async function api(path, options) {
+  await mockDelay();
+  if (path === '/products' && (!options || !options.method || options.method === 'GET')) {
+    return { success: true, data: PRODUCTS_DATA };
+  }
+  if (path === '/counter') {
+    var count = 69420 + getOrders().length;
+    return { success: true, data: { count: count } };
+  }
+  if (path === '/orders' && options && options.method === 'POST') {
+    try { var body = JSON.parse(options.body || '{}'); } catch(e) { body = {}; }
+    var newOrder = {
+      id: 'ord_' + Date.now().toString(36) + Math.random().toString(36).substring(2,6),
+      trackingNumber: generateTN(),
+      productId: body.productId || '',
+      productName: body.productName || '',
+      targetName: body.targetName || '',
+      senderName: body.senderName || '',
+      reason: body.reason || '',
+      deliveryMethod: body.deliveryMethod || 'biasa',
+      status: 'diproses',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      estimatedDelivery: new Date(Date.now() + 86400000 * 3).toISOString(),
+      progress: 0,
+      statusHistory: [
+        { status: 'diproses', message: 'Pesanan diterima. Dukun sedang merapal mantra pembuka...', timestamp: new Date().toISOString() }
+      ]
+    };
+    var orders = getOrders();
+    orders.unshift(newOrder);
+    saveOrders(orders);
+    return { success: true, data: newOrder };
+  }
+  // IMPORTANT: Check /track/ BEFORE /orders/ to avoid routing conflict!
+  var tnM = path.match(/^\/track\/(.+)$/);
+  if (tnM) {
+    var sk = tnM[1];
+    var orders3 = getOrders();
+    for (var j = 0; j < orders3.length; j++) {
+      if (orders3[j].id === sk || orders3[j].trackingNumber === sk) {
+        return { success: true, data: orders3[j] };
+      }
+    }
+    return { success: false, error: 'Tracking number tidak ditemukan' };
+  }
+
+  // Same for /orders/track/ path pattern
+  var otnM = path.match(/^\/orders\/track\/(.+)$/);
+  if (otnM) {
+    var otn = otnM[1];
+    var orders4 = getOrders();
+    for (var k = 0; k < orders4.length; k++) {
+      if (orders4[k].id === otn || orders4[k].trackingNumber === otn) {
+        return { success: true, data: orders4[k] };
+      }
+    }
+    return { success: false, error: 'Tracking number tidak ditemukan' };
+  }
+
+  // Now check /orders/:id for PATCH only
+  var pm = path.match(/^\/orders\/(.+)$/);
+  if (pm && options && options.method === 'PATCH') {
+    try { var body2 = JSON.parse(options.body || '{}'); } catch(e) { body2 = {}; }
+    var orders2 = getOrders();
+    for (var i = 0; i < orders2.length; i++) {
+      if (orders2[i].id === pm[1] || orders2[i].trackingNumber === pm[1]) {
+        orders2[i].status = body2.status || orders2[i].status;
+        orders2[i].updatedAt = new Date().toISOString();
+        saveOrders(orders2);
+        return { success: true, data: orders2[i] };
+      }
+    }
+    return { success: false, error: 'Order tidak ditemukan' };
+  }
+  if (path === '/orders' && (!options || !options.method || options.method === 'GET')) {
+    return { success: true, data: getOrders() };
+  }
+
+  // GET /orders/:id (by order ID, not tracking)
+  var idM = path.match(/^\/orders\/(.+)$/);
+  if (idM && (!options || !options.method || options.method === 'GET')) {
+    var oid = idM[1];
+    var orders5 = getOrders();
+    for (var l = 0; l < orders5.length; l++) {
+      if (orders5[l].id === oid) {
+        return { success: true, data: orders5[l] };
+      }
+    }
+  }
+
+  return { success: false, error: 'Not found' };
+}
+
+const RITUALS = {
+      'santet-biasa': {
+        emoji: '🌀',
+        particles: ['📖','💤','😴','🤷'],
+        texts: ['Membacakan doa AI generasi 3.5...','Santet biasaaaa aja dulu...','Dukun magang sedang belajar...','Hasil? Tergantung rejeki target...'],
+        duration: 1500
+      },
+      'santet-express': {
+        emoji: '⚡',
+        particles: ['💨','⚡','🔥','💫'],
+        texts: ['NGEBUT di alam astral! &#127948;&#65039;&#128168;','Dukun pakai turbo boost...','Santet dikirim prioritas: SIUUU!','Biar cepet, dukun naik knalpot brong...'],
+        duration: 1200
+      },
+      'santet-premium': {
+        emoji: '🕯️',
+        particles: ['🕯️','✨','🙏','📿'],
+        texts: ['Menyiapkan altar lilin premium...','Dukun partner mulai rapal mantra mahal...','Campuran dupa + minyak zafaron...','Ritual VIP: harap hening, dukun lagi trance...'],
+        duration: 2500
+      },
+      'santet-mantan': {
+        emoji: '💔',
+        particles: ['💔','👻','😭','📸'],
+        texts: ['MENYANTET MANTAN! Gas pol!','Dukun baca chat lama target...','Karma dikirim: semoga nyesel seumur hidup','Mantannya lagi apa ya sekarang? Santet aja!'],
+        duration: 2000
+      },
+      'santet-rejeki': {
+        emoji: '💰',
+        particles: ['💸','📉','🚫','😩'],
+        texts: ['Ngerem rejeki target... remmm!','Boncosin target hari ini','Dompet target digunting jin...','Semoga target bangkrut (maap ya)'],
+        duration: 1800
+      },
+      'santet-cinta': {
+        emoji: '💕',
+        particles: ['💕','🥰','💌','🌹'],
+        texts: ['Merapal mantra cinta ala sinetron...','Target dikirimin bayang-bayang doi','Semoga baper, atau duit balik!','Love is in the air... atau santet?'],
+        duration: 2000
+      },
+      'santet-corporate': {
+        emoji: '🏢',
+        particles: ['💼','📊','😤','📉'],
+        texts: ['Nyantet seluruh departemen! rame-rame!','Menyiapkan pesawat gaib untuk 1 lantai...','Paket corporate: bos kena, anak buah kena','Meeting gaib dengan dewan direksi alam astral'],
+        duration: 3000
+      },
+      'santet-ultra': {
+        emoji: '🔥',
+        particles: ['🔥','💀','🦅','⚡'],
+        texts: ['&#9888;&#65039; RITUAL ULTIMATE! Dukun level max ON!','Menyembelih ayam cemani... (tapi boong)','Mantra level dewa: target auto kena sial 7 turunan','&#128293;&#128293;&#128293; FULL POWER! NO MERCY! &#128293;&#128293;&#128293;'],
+        duration: 3000
+      }
+    };
+
+    async function showRitual(productId, duration) {
+      const ritual = RITUALS[productId];
+      if (!ritual) {
+        await showLoading(duration || 1500);
+        return;
+      }
+      const screen = document.getElementById('loadingScreen');
+      const emojiEl = document.getElementById('ritualEmoji');
+      const textEl = document.getElementById('loadingText');
+      const particlesEl = document.getElementById('ritualParticles');
+
+      emojiEl.textContent = ritual.emoji;
+      emojiEl.className = 'ritual-emoji-big ritual-bounce';
+      particlesEl.innerHTML = '';
+      for (let i = 0; i < 15; i++) {
+        const p = document.createElement('span');
+        p.className = 'ritual-particle';
+        p.textContent = ritual.particles[Math.floor(Math.random() * ritual.particles.length)];
+        p.style.left = Math.random() * 100 + '%';
+        p.style.animationDelay = (Math.random() * 2) + 's';
+        p.style.animationDuration = (1.5 + Math.random() * 2) + 's';
+        p.style.fontSize = (0.8 + Math.random() * 1.2) + 'rem';
+        particlesEl.appendChild(p);
+      }
+      let textIdx = 0;
+      textEl.textContent = ritual.texts[0];
+      const textInterval = setInterval(() => {
+        textIdx = (textIdx + 1) % ritual.texts.length;
+        textEl.textContent = ritual.texts[textIdx];
+      }, 800);
+      screen.classList.add('active');
+      await new Promise(r => setTimeout(r, duration || ritual.duration));
+      clearInterval(textInterval);
+      screen.classList.remove('active');
+      emojiEl.className = 'ritual-emoji-big';
+      particlesEl.innerHTML = '';
+    }
+
+    async function showLoading(duration) {
+      if (!duration) duration = 1500;
+      const screen = document.getElementById('loadingScreen');
+      const emojiEl = document.getElementById('ritualEmoji');
+      const particlesEl = document.getElementById('ritualParticles');
+      const texts = ['Memanggil roh leluhur...','Memanaskan kuali santet...','Membaca kitab kuno...','Menghubungi dukun langganan...','Menyiapkan jin pengirim...','Ngecas ilmu hitam...'];
+      emojiEl.textContent = '🕯️';
+      emojiEl.className = 'ritual-emoji-big';
+      particlesEl.innerHTML = '';
+      const text = document.getElementById('loadingText');
+      text.textContent = texts[Math.floor(Math.random() * texts.length)];
+      screen.classList.add('active');
+      await new Promise(r => setTimeout(r, duration));
+      screen.classList.remove('active');
+    }
+
+    function navigate(page, params) {
+      // Clear any tracking intervals on navigation
+      trackingIntervals.forEach(clearInterval);
+      trackingIntervals = [];
+      window.history.pushState({ page, params }, '', '#' + page);
+      renderPage(page, params);
+    }
+
+    window.addEventListener('popstate', function(e) {
+      const hash = location.hash.slice(1) || 'home';
+      renderPage(hash);
+    });
+
+    async function renderPage(page, params) {
+      await showLoading(800);
+      const container = document.getElementById('pageContent');
+      switch(page) {
+        case 'home': renderHome(container); break;
+        case 'products': renderProducts(container); break;
+        case 'order': renderOrder(container, params); break;
+        case 'order-success': renderOrderSuccess(container, params); break;
+        case 'tracking': renderTrackingForm(container); break;
+        case 'track-result': renderTrackingResult(container, params); break;
+        case 'admin-login': renderAdminLogin(container); break;
+        case 'admin': renderAdmin(container); break;
+        default: renderHome(container);
+      }
+    }
+
+    function showToast(message, type) {
+      if (!type) type = 'info';
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast toast-' + type + ' active';
+      setTimeout(function() { toast.classList.remove('active'); }, 3500);
+    }
+
+    function formatPrice(price) {
+      if (price === 0) return 'GRATIS';
+      return 'Rp ' + price.toLocaleString('id-ID');
+    }
+
+    // ===== HOME =====
+    function renderHome(container) {
+      api('/counter').then(function(d) {
+        if (d.success) document.getElementById('santetCounter').textContent = d.data.count.toLocaleString();
+      });
+      container.innerHTML = [
+        '<section class="hero">',
+          '<div class="hero-content">',
+            '<span class="hero-emoji">🔮</span>',
+            '<h1 class="hero-title">Sudah Siap <span class="gradient-text">Nyantet</span> Hari Ini?</h1>',
+            '<p class="hero-subtitle">Platform pengiriman santet digital #1 di Indonesia. Dari hati paling dalam, sampai ke pesawat gaib.</p>',
+            '<div class="hero-counter">',
+              '<span class="counter-label">Santet Terkirim:</span>',
+              '<span class="counter-number" id="santetCounter">1.337</span>',
+            '</div>',
+            '<div class="hero-cta">',
+              '<button class="btn btn-primary btn-lg" onclick="navigate(\'products\')">🔮 Santet Sekarang!</button>',
+              '<button class="btn btn-ghost btn-lg" onclick="navigate(\'tracking\')">📦 Lacak Santet</button>',
+            '</div>',
+          '</div>',
+        '</section>',
+        '<section class="testimonials">',
+          '<h2 class="section-title">Apa Kata <span class="gradient-text">Mereka</span>?</h2>',
+          '<div class="testimonial-grid">',
+            '<div class="testimonial-card"><div class="testimonial-avatar">😤</div><p class="testimonial-text">"Santet Mantan beneran manjur! Dua hari setelah order, doi update status \'rindu masa lalu\'. Puas banget!"</p><p class="testimonial-name">&mdash; Sari, 24</p></div>',
+            '<div class="testimonial-card"><div class="testimonial-avatar">😈</div><p class="testimonial-text">"Santet Corporate saya kasih ke bos. Sekarang dia lupa password email tiap hari. Worth every penny!"</p><p class="testimonial-name">&mdash; Adi, 31</p></div>',
+            '<div class="testimonial-card"><div class="testimonial-avatar">🤣</div><p class="testimonial-text">"Santet Biasa (gratis) aja udah ampuh. Temen gue tiba-tiba kena step pada lagu yang diputer terus. WKWK"</p><p class="testimonial-name">&mdash; Budi, 19</p></div>',
+          '</div>',
+        '</section>',
+        '<section class="features">',
+          '<h2 class="section-title">Kenapa Pilih <span class="gradient-text">Kami</span>?</h2>',
+          '<div class="features-grid">',
+            '<div class="feature-card"><span class="feature-icon">🚀</span><h3>Pengiriman Cepat</h3><p>Via jalur astral, angin, api, air, dan mimpi.</p></div>',
+            '<div class="feature-card"><span class="feature-icon">📱</span><h3>Tracking Realtime</h3><p>Pantau perjalanan santet Anda 24 jam via portal gaib.</p></div>',
+            '<div class="feature-card"><span class="feature-icon">🛡️</span><h3>Garansi Pulas</h3><p>Santet tidak sampai? Klaim refund &mdash; dukun kami yang di-pulaskan!</p></div>',
+            '<div class="feature-card"><span class="feature-icon">🤫</span><h3>Identitas Aman</h3><p>Target tidak akan tahu siapa pengirimnya. (Mungkin.)</p></div>',
+          '</div>',
+        '</section>',
+        '<section class="how-it-works">',
+          '<h2 class="section-title">Cara <span class="gradient-text">Nyantet</span></h2>',
+          '<div class="steps">',
+            '<div class="step"><span class="step-number">1</span><h3>Pilih Jenis Santet</h3><p>Santet Biasa sampai Ultimate &mdash; ada yang gratisan juga!</p></div>',
+            '<div class="step-connector">➜</div>',
+            '<div class="step"><span class="step-number">2</span><h3>Masukkan Data Target</h3><p>Nama, alasan &mdash; biar dukun makin greget.</p></div>',
+            '<div class="step-connector">➜</div>',
+            '<div class="step"><span class="step-number">3</span><h3>Bayar (Kalau Berbayar)</h3><p>Santet gratis tetep jalan kok. Yang bayar dapet prioritas.</p></div>',
+            '<div class="step-connector">➜</div>',
+            '<div class="step"><span class="step-number">4</span><h3>🎉 DAPAT TRACKING NUMBER!</h3><p>Copy nomor tracking, pantau ritual dukun secara realtime!</p></div>',
+          '</div>',
+        '</section>'
+      ].join('\n');
+      animateCounter();
+    }
+
+    function animateCounter() {
+      setInterval(async function() {
+        const d = await api('/counter');
+        if (d.success) {
+          const el = document.getElementById('santetCounter');
+          if (el) el.textContent = d.data.count.toLocaleString();
+        }
+      }, 5000);
+    }
+
+    // ===== PRODUCTS =====
+    function renderProductGrid() {
+      var grid = document.getElementById('productsGrid');
+      if (!grid || !products || !products.length) return;
+      grid.innerHTML = products.map(function(p) {
+        var tagHtml = '';
+        if (p.tag) {
+          var cls = 'tag-' + p.tag.toLowerCase().replace(/\s/g, '-');
+          tagHtml = '<span class="product-tag ' + cls + '">' + p.tag + '</span>';
+        }
+        return [
+          '<div class="product-card" onclick="navigate(\'order\', \'' + p.id + '\')">',
+            '<div class="product-card-glow"></div>',
+            '<div class="product-emoji">' + p.icon + '</div>',
+            '<div class="product-tags">',
+              '<span class="product-tag tag-price">' + formatPrice(p.price) + '</span>',
+              tagHtml,
+            '</div>',
+            '<h3 class="product-name">' + p.name + '</h3>',
+            '<p class="product-desc">' + p.description + '</p>',
+            '<div class="product-meta"><span>⏱️ ' + p.deliveryTime + '</span></div>',
+            '<button class="btn btn-primary product-order-btn">Pilih Santet Ini</button>',
+          '</div>'
+        ].join('\n');
+      }).join('\n');
+    }
+
+    function renderProducts(container) {
+      container.innerHTML = [
+        '<section class="products-page">',
+          '<div class="products-header">',
+            '<h1 class="section-title">Pilih <span class="gradient-text">Senjata</span> Anda 🔮</h1>',
+            '<p class="section-desc">Tinggal pilih, dukun kami yang urus sisanya.</p>',
+          '</div>',
+          '<div class="products-grid" id="productsGrid">'
+      ].join('\n') + '</div></section>';
+
+      // Render dari embedded dulu — instan!
+      if (typeof PRODUCTS_DATA !== 'undefined' && PRODUCTS_DATA && PRODUCTS_DATA.length) {
+        products = PRODUCTS_DATA;
+        renderProductGrid();
+      } else {
+        var pGrid = document.getElementById('productsGrid');
+        if (pGrid) pGrid.innerHTML = '<div class="loading-products">Memuat daftar santet...</div>';
+      }
+
+      // Refresh dari API di background
+      api('/products').then(function(d) {
+        if (!d.success || !d.data) return;
+        products = d.data;
+        PRODUCTS_DATA = d.data;
+        renderProductGrid();
+      }).catch(function() {
+        // Gagal? Gapapa, masih pake embedded
+      });
+    }
+
+    // ===== ORDER =====
+    function renderOrder(container, productId) {
+      var product = null;
+      for (var i = 0; i < products.length; i++) {
+        if (products[i].id === productId) { product = products[i]; break; }
+      }
+      if (!product) {
+        container.innerHTML = '<div class="error-page"><h2>Produk tidak ditemukan!</h2><button class="btn btn-primary" onclick="navigate(\'products\')">Kembali</button></div>';
+        return;
+      }
+
+      currentOrder = { productId: productId };
+      var payStyle = product.price > 0 ? '' : ' style="display:none"';
+      container.innerHTML = [
+        '<section class="order-page">',
+          '<div class="order-container">',
+            '<div class="order-header">',
+              '<span class="order-product-icon">' + product.icon + '</span>',
+              '<h1>Pesan ' + product.name + '</h1>',
+              '<p class="order-price">' + formatPrice(product.price) + '</p>',
+            '</div>',
+            '<form id="orderForm" class="order-form" onsubmit="submitOrder(event)">',
+              '<div class="form-group">',
+                '<label class="form-label">🐱 Nama Target <span class="required">*</span></label>',
+                '<input type="text" class="form-input" id="targetName" placeholder="Contoh: si Asep, Mantan gue, Bos Galak" required>',
+              '</div>',
+              '<div class="form-group">',
+                '<label class="form-label">😤 Alasan Nyantet <span class="required">*</span></label>',
+                '<textarea class="form-input form-textarea" id="reason" placeholder="Ceritain kenapa dia pantas kena santet..." required></textarea>',
+                '<small class="form-hint">Bikin lucu, nanti dibacain dukun pas ritual.</small>',
+              '</div>',
+              '<div class="form-group">',
+                '<label class="form-label">📸 Foto Target (Opsional)</label>',
+                '<input type="text" class="form-input" id="photo" placeholder="URL foto target (kalau ada)">',
+              '</div>',
+              '<div class="form-group">',
+                '<label class="form-label">🌊 Metode Pengiriman <span class="required">*</span></label>',
+                '<div class="delivery-grid">',
+                  '<label class="delivery-option"><input type="radio" name="delivery" value="Angin" required><span class="delivery-content"><span class="delivery-icon">🌬️</span><span class="delivery-name">Angin</span><span class="delivery-desc">Cepat & tak terbaca</span></span></label>',
+                  '<label class="delivery-option"><input type="radio" name="delivery" value="Air"><span class="delivery-content"><span class="delivery-icon">💧</span><span class="delivery-name">Air</span><span class="delivery-desc">Mengalir halus</span></span></label>',
+                  '<label class="delivery-option"><input type="radio" name="delivery" value="Api"><span class="delivery-content"><span class="delivery-icon">🔥</span><span class="delivery-name">Api</span><span class="delivery-desc">Panas & langsung</span></span></label>',
+                  '<label class="delivery-option"><input type="radio" name="delivery" value="Mimpi"><span class="delivery-content"><span class="delivery-icon">💤</span><span class="delivery-name">Mimpi</span><span class="delivery-desc">Nunggu tidur</span></span></label>',
+                  '<label class="delivery-option"><input type="radio" name="delivery" value="Gethuk"><span class="delivery-content"><span class="delivery-icon">🍡</span><span class="delivery-name">Gethuk</span><span class="delivery-desc">Dicampur gethuk</span></span></label>',
+                  '<label class="delivery-option"><input type="radio" name="delivery" value="WiFi"><span class="delivery-content"><span class="delivery-icon">📶</span><span class="delivery-name">WiFi</span><span class="delivery-desc">Digital native</span></span></label>',
+                '</div>',
+              '</div>',
+              '<div class="form-payment"' + payStyle + '>',
+                '<h3>💳 Pembayaran</h3>',
+                '<p class="payment-note"><em>Simulasi pembayaran &mdash; kartu kredit apapun diterima. Karena ini parodi 😉</em></p>',
+                '<div class="form-group"><label class="form-label">Nomor Kartu</label><input type="text" class="form-input" placeholder="1234 5678 9012 3456" value="4242 4242 4242 4242"></div>',
+                '<div class="form-row"><div class="form-group"><label class="form-label">Masa Berlaku</label><input type="text" class="form-input" placeholder="12/28" value="12/28"></div><div class="form-group"><label class="form-label">CVV</label><input type="text" class="form-input" placeholder="123" value="123"></div></div>',
+              '</div>',
+              '<button type="submit" class="btn btn-primary btn-lg btn-full" id="orderSubmitBtn">🔮 Kirim Santet!</button>',
+            '</form>',
+          '</div>',
+        '</section>'
+      ].join('\n');
+    }
+
+    async function submitOrder(e) {
+      e.preventDefault();
+      const btn = document.getElementById('orderSubmitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '🕯️ Merapal mantra...';
+
+      const deliveryInput = document.querySelector('input[name="delivery"]:checked');
+      const productId = currentOrder.productId;
+
+      const body = {
+        productId: productId,
+        targetName: document.getElementById('targetName').value,
+        reason: document.getElementById('reason').value,
+        deliveryMethod: deliveryInput ? deliveryInput.value : 'Angin',
+        photo: document.getElementById('photo').value || null
+      };
+
+      const ritual = RITUALS[productId];
+      await showRitual(productId, ritual ? ritual.duration : 2000);
+
+      const result = await api('/orders', {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+
+      if (result.success) {
+        navigate('order-success', result.data);
+      } else {
+        showToast('❌ ' + result.message, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '🔮 Kirim Santet!';
+      }
+    }
+
+    // ===== ORDER SUCCESS =====
+    function renderOrderSuccess(container, data) {
+      const order = (typeof data === 'object' && data !== null) ? data : null;
+      if (!order || !order.trackingNumber) {
+        container.innerHTML = '<div class="error-page"><h2>Data pesanan error!</h2><button class="btn btn-primary" onclick="navigate(\'home\')">Kembali</button></div>';
+        return;
+      }
+
+      var productEmoji = '🔮';
+      for (var i = 0; i < products.length; i++) {
+        if (products[i].id === order.productId) { productEmoji = products[i].icon; break; }
+      }
+
+      container.innerHTML = [
+        '<section class="success-page">',
+          '<div class="success-confetti" id="successConfetti"></div>',
+          '<div class="success-container">',
+            '<div class="success-header">',
+              '<span class="success-big-emoji">' + productEmoji + '</span>',
+              '<div class="success-badge-bar"><span class="badge badge-success">✅ SANTET BERHASIL DIKIRIM!</span></div>',
+              '<h1 class="success-title">Ritual <span class="gradient-text">Selesai</span> 🔥</h1>',
+              '<p class="success-subtitle">Dukun kami sudah merapalkan mantra untuk <strong>' + order.targetName + '</strong> via <strong>' + order.deliveryMethod + '</strong></p>',
+            '</div>',
+            '<div class="success-tracking-box">',
+              '<div class="success-tracking-label">🎫 NOMOR TRACKING SANTET ANDA:</div>',
+              '<div class="success-tracking-number" id="trackingDisplay">' + order.trackingNumber + '</div>',
+              '<p class="success-tracking-info">Silahkan copy nomor tracking di atas untuk memantau perjalanan santet anda!</p>',
+              '<div class="success-copy-area">',
+                '<button class="btn btn-primary btn-lg success-copy-btn" onclick="copyTracking(\'' + order.trackingNumber + '\')">📋 Copy Tracking Number</button>',
+                '<button class="btn btn-ghost btn-lg" onclick="navigate(\'track-result\', \'' + order.trackingNumber + '\')">📦 Langsung Lacak</button>',
+              '</div>',
+              '<div id="copyFeedback" class="copy-feedback hidden">✅ Berhasil dicopy! Jangan sampai ilang ya!</div>',
+            '</div>',
+            '<div class="success-details">',
+              '<div class="success-detail-item"><span class="detail-label">Produk</span><span class="detail-value">' + order.productName + '</span></div>',
+              '<div class="success-detail-item"><span class="detail-label">Target</span><span class="detail-value">' + order.targetName + '</span></div>',
+              '<div class="success-detail-item"><span class="detail-label">Alasan</span><span class="detail-value">' + order.reason + '</span></div>',
+              '<div class="success-detail-item"><span class="detail-label">Metode Kirim</span><span class="detail-value">' + order.deliveryMethod + '</span></div>',
+              '<div class="success-detail-item"><span class="detail-label">Status</span><span class="badge badge-warning">' + order.status.replace(/-/g, ' ') + '</span></div>',
+            '</div>',
+            '<div class="success-joke"><p>💡 <em>Jangan khawatir, kalo santet gagal &mdash; dukun kami yang dipulas!</em></p></div>',
+            '<div class="success-actions">',
+              '<button class="btn btn-primary btn-lg btn-full" onclick="navigate(\'products\')">🔮 Santet Lagi!</button>',
+              '<button class="btn btn-ghost btn-full" onclick="navigate(\'tracking\')">📦 Lacak Santet Lain</button>',
+            '</div>',
+          '</div>',
+        '</section>'
+      ].join('\n');
+
+      launchSuccessConfetti(productEmoji);
+    }
+
+    function launchSuccessConfetti(emoji) {
+      const container = document.getElementById('successConfetti');
+      if (!container) return;
+      const symbols = ['✨','⭐','🎉','🎊',emoji,'💫','🌟','🔥'];
+      for (let i = 0; i < 30; i++) {
+        const el = document.createElement('span');
+        el.className = 'confetti-piece';
+        el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+        el.style.left = Math.random() * 100 + '%';
+        el.style.animationDelay = (Math.random() * 2) + 's';
+        el.style.animationDuration = (2 + Math.random() * 3) + 's';
+        el.style.fontSize = (0.6 + Math.random() * 1.5) + 'rem';
+        container.appendChild(el);
+      }
+    }
+
+    function copyTracking(tn) {
+      navigator.clipboard.writeText(tn).then(function() {
+        var feedback = document.getElementById('copyFeedback');
+        if (feedback) {
+          feedback.classList.remove('hidden');
+          setTimeout(function() { feedback.classList.add('hidden'); }, 3000);
+        }
+      }).catch(function() {
+        var display = document.getElementById('trackingDisplay');
+        if (display) {
+          var range = document.createRange();
+          range.selectNode(display);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+          var feedback = document.getElementById('copyFeedback');
+          if (feedback) {
+            feedback.classList.remove('hidden');
+            setTimeout(function() { feedback.classList.add('hidden'); }, 3000);
+          }
+        }
+      });
+    }
+
+    // ===== TRACKING FORM =====
+    function renderTrackingForm(container) {
+      container.innerHTML = [
+        '<section class="tracking-page">',
+          '<div class="tracking-container">',
+            '<div class="tracking-header">',
+              '<span class="tracking-icon">📦</span>',
+              '<h1>Lacak <span class="gradient-text">Santet</span></h1>',
+              '<p>Masukkan nomor tracking untuk melihat status terkini santet Anda.</p>',
+            '</div>',
+            '<form class="tracking-form" onsubmit="trackOrder(event)">',
+              '<div class="form-group"><label class="form-label">🔍 Nomor Tracking</label><input type="text" class="form-input tracking-input" id="trackingInput" placeholder="Contoh: SNT-ABCD123" required></div>',
+              '<button type="submit" class="btn btn-primary btn-lg btn-full">Lacak ➜</button>',
+            '</form>',
+            '<div id="trackingResult"></div>',
+          '</div>',
+        '</section>'
+      ].join('\n');
+    }
+
+    async function trackOrder(e) {
+      e.preventDefault();
+      const tn = document.getElementById('trackingInput').value.trim().toUpperCase();
+      if (!tn) return;
+
+      await showLoading(1200);
+      const result = await api('/orders/track/' + tn);
+      const container = document.getElementById('trackingResult');
+
+      if (result.success) {
+        renderTrackingResult(container, result.data);
+      } else {
+        container.innerHTML = [
+          '<div class="tracking-error">',
+            '<span class="tracking-error-icon">🚫</span>',
+            '<h3>Tracking Tidak Ditemukan</h3>',
+            '<p>' + result.message + '</p>',
+            '<p class="tracking-error-hint">Atau mungkin... santetnya kena balik? 👀</p>',
+          '</div>'
+        ].join('\n');
+      }
+    }
+
+    // ===== TRACKING RESULT — LIVE SIMULATOR! =====
+    async function renderTrackingResult(container, data) {
+      // Clear old intervals
+      trackingIntervals.forEach(clearInterval);
+      trackingIntervals = [];
+
+      // Accept EITHER order object OR tracking number string
+      var order = null;
+      if (typeof data === 'object' && data !== null && data.trackingNumber) {
+        order = data;
+      } else if (typeof data === 'string') {
+        // Fetch from API
+        var res = await api('/track/' + data.toUpperCase());
+        if (res.success && res.data) {
+          order = res.data;
+        }
+      }
+
+      if (!order) {
+        container.innerHTML = [
+          '<div class="tracking-result">',
+            '<div class="tracking-error">',
+              '<span class="tracking-error-icon">🚫</span>',
+              '<h3>Tracking Tidak Ditemukan</h3>',
+              '<p>Tracking number tidak ditemukan di database santet.</p>',
+              '<p class="tracking-error-hint">Atau mungkin... santetnya kena balik? 👀</p>',
+              '<button class="btn btn-ghost" onclick="navigate(\'tracking\')">🔍 Coba Lagi</button>',
+            '</div>',
+          '</div>'
+        ].join('\n');
+        return;
+      }
+
+      const STATUS_FLOW = ['diproses', 'dikirim', 'dalam-perjalanan', 'selesai'];
+      const STATUS_ICONS = { diproses: '🕯️', dikirim: '🚀', 'dalam-perjalanan': '🌀', selesai: '✅', gagal: '💀' };
+      const STATUS_COLORS = { diproses: 'warning', dikirim: 'info', 'dalam-perjalanan': 'info', selesai: 'success', gagal: 'danger' };
+      const PROGRESS_PCT = { diproses: 15, dikirim: 40, 'dalam-perjalanan': 70, selesai: 100, gagal: 100 };
+
+      // Fake status messages for live simulation
+      const LIVE_MESSAGES = {
+        diproses: [
+          'Dukun sedang merapal mantra pembuka...',
+          'Memanaskan kuali... kuali dipanasin...',
+          'Dukun baca buku petunjuk santet...',
+          'Jin pengirim sedang di-onboard...',
+          'Menyiapkan sesajen digital...'
+        ],
+        dikirim: [
+          'Santet sudah meninggalkan markas dukun!',
+          'Dalam perjalanan via jalur angin...',
+          'Terbang di atas atmosfer astral...',
+          'Melewati portal dimensi ke-5...',
+          'Santet hampir sampai! ETA tidak lama lagi!'
+        ],
+        'dalam-perjalanan': [
+          'Santet mendekati target...',
+          'Dukun melakukan pengecekan rute...',
+          'Santet menghindari radar karma...',
+          'Sisa perjalanan: beberapa dimensi lagi...',
+          'Target tidak sadar sedang didekati santet...'
+        ],
+        selesai: [
+          '✅ SANTET BERHASIL SAMPAI!',
+          'Target terkena santet!',
+          'Dukun mengucap syukur...',
+          'Ritual selesai. Silahkan order lagi!'
+        ],
+        gagal: [
+          '💀 SANTET GAGAL!',
+          'Target ternyata punya ilmu kebal...',
+          'Santet dipantul balik!'
+        ]
+      };
+
+      function getRandomMessage(status) {
+        var msgs = LIVE_MESSAGES[status] || ['Status tidak diketahui...'];
+        return msgs[Math.floor(Math.random() * msgs.length)];
+      }
+
+      // Letakkan HTML
+      const currentIdx = STATUS_FLOW.indexOf(order.status);
+      var statusHtml = '';
+      for (var s = 0; s < STATUS_FLOW.length; s++) {
+        var st = STATUS_FLOW[s];
+        var isActive = s <= currentIdx;
+        var isCurrent = s === currentIdx;
+        statusHtml += '<span class="live-progress-step' + (isActive ? ' active' : '') + (isCurrent ? ' current' : '') + '">' + STATUS_ICONS[st] + ' ' + st.charAt(0).toUpperCase() + st.slice(1).replace('-', ' ') + '</span>';
+        if (s < STATUS_FLOW.length - 1) {
+          statusHtml += '<span class="live-progress-connector' + (isActive && s < currentIdx ? ' active' : '') + '"></span>';
+        }
+      }
+
+      // Box copy tracking
+      var isFinished = (order.status === 'selesai' || order.status === 'gagal');
+
+      container.innerHTML = [
+        '<div class="tracking-result">',
+          '<div class="tracking-result-header">',
+            '<h2>🔮 Live Tracking Santet</h2>',
+            '<div class="tracking-live-badge" id="liveBadge">',
+              isFinished ? '<span class="badge badge-' + STATUS_COLORS[order.status] + '">Status: ' + order.status.replace(/-/g, ' ') + '</span>' : '<span class="live-dot"></span> LIVE',
+            '</div>',
+          '</div>',
+
+          // Tracking number — bisa dicopy!
+          '<div class="tracking-result-copy">',
+            '<span class="info-label">Tracking Number</span>',
+            '<div class="tracking-result-tn">',
+              '<span class="tracking-number-display" id="trackResultTn">' + order.trackingNumber + '</span>',
+              '<button class="btn btn-sm btn-ghost" onclick="copyTrackResultTn(\'' + order.trackingNumber + '\')">📋 Copy</button>',
+            '</div>',
+            '<small class="form-hint">Silahkan copy nomor tracking untuk memantau lagi nanti</small>',
+          '</div>',
+
+          // Info grid
+          '<div class="tracking-info-grid">',
+            '<div class="tracking-info-item"><span class="info-label">Jenis Santet</span><span class="info-value">' + order.productName + '</span></div>',
+            '<div class="tracking-info-item"><span class="info-label">Target</span><span class="info-value">' + order.targetName + '</span></div>',
+            '<div class="tracking-info-item"><span class="info-label">Metode</span><span class="info-value">' + order.deliveryMethod + '</span></div>',
+            '<div class="tracking-info-item"><span class="info-label">Estimasi Tiba</span><span class="info-value">' + new Date(order.estimatedDelivery).toLocaleString('id-ID') + '</span></div>',
+          '</div>',
+
+          // Live progress bar!
+          '<div class="live-progress-container" id="liveProgressContainer">',
+            '<div class="live-progress-bar-track">',
+              '<div class="live-progress-fill" id="liveProgressFill" style="width:' + PROGRESS_PCT[order.status] + '%"></div>',
+            '</div>',
+            '<div class="live-progress-steps" id="liveProgressSteps">' + statusHtml + '</div>',
+            '<div class="live-message" id="liveMessage">',
+              '<span class="live-message-icon">' + STATUS_ICONS[order.status] + '</span>',
+              '<span class="live-message-text" id="liveMessageText">' + getRandomMessage(order.status) + '</span>',
+            '</div>',
+            '<div class="live-eta" id="liveEta">',
+              isFinished ? '<span class="badge badge-success">✅ Proses selesai</span>' : '<span class="live-eta-text">🔄 Auto-refresh setiap 5 detik...</span>',
+            '</div>',
+          '</div>',
+
+          // Timeline
+          '<div class="tracking-timeline">',
+            '<h3>Riwayat Perjalanan Santet</h3>',
+            '<div id="timelineContainer">',
+              order.statusHistory.map(function(h) {
+                return '<div class="timeline-item"><div class="timeline-icon">' + (STATUS_ICONS[h.status] || '📌') + '</div><div class="timeline-content"><p class="timeline-message">' + h.message + '</p><small class="timeline-time">' + new Date(h.timestamp).toLocaleString('id-ID') + '</small></div></div>';
+              }).join(''),
+            '</div>',
+          '</div>',
+
+          '<div class="tracking-actions">',
+            '<button class="btn btn-primary" onclick="navigate(\'products\')">🔮 Santet Lagi!</button>',
+            '<button class="btn btn-ghost" onclick="navigate(\'tracking\')">📦 Lacak Lain</button>',
+          '</div>',
+        '</div>'
+      ].join('\n');
+
+      // ===== TRIGGER ANIMASI AWAL KALO UDAH SELESAI =====
+      if (order.status === 'selesai') {
+        setTimeout(function() { triggerSantetHit(order.productName, order.targetName); }, 500);
+      } else if (order.status === 'gagal') {
+        setTimeout(function() { triggerSantetFailed(order.productName, order.targetName); }, 500);
+      }
+
+      // ===== LIVE SIMULATOR (hanya untuk yang belum selesai) =====
+      if (!isFinished) {
+        var tn = order.trackingNumber;
+        var interval = setInterval(async function() {
+          var res = await api('/orders/track/' + tn);
+          if (res.success) {
+            var o = res.data;
+            var flowIdx = STATUS_FLOW.indexOf(o.status);
+
+            // Update progress fill
+            var fill = document.getElementById('liveProgressFill');
+            if (fill) {
+              fill.style.width = (PROGRESS_PCT[o.status] || 15) + '%';
+            }
+
+            // Update steps
+            var steps = document.querySelectorAll('.live-progress-step');
+            var connectors = document.querySelectorAll('.live-progress-connector');
+            for (var si = 0; si < steps.length; si++) {
+              steps[si].classList.toggle('active', si <= flowIdx);
+              steps[si].classList.toggle('current', si === flowIdx);
+              if (connectors[si]) {
+                connectors[si].classList.toggle('active', si < flowIdx);
+              }
+            }
+
+            // Update message
+            var msgText = document.getElementById('liveMessageText');
+            if (msgText) msgText.textContent = getRandomMessage(o.status);
+            var msgIcon = document.querySelector('.live-message-icon');
+            if (msgIcon) msgIcon.textContent = STATUS_ICONS[o.status] || '📌';
+
+            // Update badge
+            var badge = document.getElementById('liveBadge');
+            if (badge) {
+              badge.innerHTML = '<span class="live-dot"></span> LIVE';
+            }
+
+            // Check if finished
+            if (o.status === 'selesai' || o.status === 'gagal') {
+              if (badge) {
+                badge.innerHTML = '<span class="badge badge-' + STATUS_COLORS[o.status] + '">Status: ' + o.status.replace(/-/g, ' ') + '</span>';
+              }
+              var eta = document.getElementById('liveEta');
+              if (eta) {
+                eta.innerHTML = '<span class="badge badge-success">✅ Proses selesai</span>';
+              }
+              // TRIGGER ANIMATION KENA SANTET!
+              if (o.status === 'selesai') {
+                triggerSantetHit(o.productName, o.targetName);
+              } else if (o.status === 'gagal') {
+                triggerSantetFailed(o.productName, o.targetName);
+              }
+              clearInterval(interval);
+            }
+          }
+        }, 5000);
+        trackingIntervals.push(interval);
+      }
+    }
+
+    // Copy TN from tracking result page
+    function copyTrackResultTn(tn) {
+      navigator.clipboard.writeText(tn).then(function() {
+        showToast('✅ Tracking number "' + tn + '" berhasil dicopy!', 'success');
+      }).catch(function() {
+        var el = document.getElementById('trackResultTn');
+        if (el) {
+          var range = document.createRange();
+          range.selectNode(el);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+          showToast('✅ Tracking number berhasil dicopy!', 'success');
+        }
+      });
+    }
+
+    // ===== HIT ANIMATIONS per SANTET =====
+    const HIT_ANIMS = {
+      'santet-biasa': {
+        boom: '🌀',
+        title: '🥱 YAH BIASA AJA TUH!',
+        subtitle: '{target} kena santet biasa... garing!',
+        joke: 'Dukun magang tersenyum. Lumayan buat pemanasan.',
+        symbols: ['🌀','😐','💤','🤷','📖','😶','🌟','💨']
+      },
+      'santet-express': {
+        boom: '⚡',
+        title: '🏃💨 SANTET NGEBUT SAMPE!',
+        subtitle: '{target} kena <strong>{product}</strong> — delivery lebih cepet dari GoFood!',
+        joke: 'Dukun pakai turbo jet. Target gak sempat ngelak! 🚀',
+        symbols: ['⚡','💨','🏃','🚀','🔥','💥','🌪️','🏎️']
+      },
+      'santet-premium': {
+        boom: '🕯️',
+        title: '✨ SANTET PREMIUM TELAH SAMPAI ✨',
+        subtitle: '{target} kena <strong>{product}</strong> — VIP treatment dari alam gaib!',
+        joke: 'Dukun partner level 4 turun tangan. Dijamin berkelas! 🌟',
+        symbols: ['🕯️','✨','👑','💎','🌟','🙏','📿','🌙']
+      },
+      'santet-mantan': {
+        boom: '💔',
+        title: '💔 MANTAN KENA BATU!',
+        subtitle: '{target} kena <strong>{product}</strong> — karma mantan nyamperin! 😈',
+        joke: 'Sekarang doi nyesel seumur hidup. Puas? 👻',
+        symbols: ['💔','😭','👻','📸','💢','😤','🔪','😩','💀']
+      },
+      'santet-rejeki': {
+        boom: '💰',
+        title: '💸 REJEKINYA SERET!',
+        subtitle: '{target} kena <strong>{product}</strong> — dompet langsung kempes! 📉',
+        joke: 'Tinggal goceng? Santet rejeki berhasil. Maap ya target 🙏',
+        symbols: ['💰','📉','💸','😩','🚫','💳','📊','😰','🧧']
+      },
+      'santet-cinta': {
+        boom: '💕',
+        title: '💕 CINTA BERKELIR!',
+        subtitle: '{target} kena <strong>{product}</strong> — hatinya galau gak karuan! 🥺',
+        joke: 'Baper tingkat dewa. Target tiba-tiba kangen mantan... wkwk',
+        symbols: ['💕','🥰','💌','🌹','💘','😍','💗','💓','💞']
+      },
+      'santet-corporate': {
+        boom: '🏢',
+        title: '🏢 GEDUNG GONCANG!',
+        subtitle: '{target} kena <strong>{product}</strong> — satu departemen kena mental!',
+        joke: 'Bos marah-marah, anak buah stres. Produktivitas? Anjlok! 📊',
+        symbols: ['🏢','💼','📊','😤','📉','👔','😰','🏗️','💢']
+      },
+      'santet-ultra': {
+        boom: '🔥',
+        title: '🔥☠️ ULTRA HIT!! GAGAL KENAL! 🔥☠️',
+        subtitle: '{target} kena <strong>{product}</strong> — efeknya 7 turunan! 🦅',
+        joke: 'Dukun level dewa turun gunung. Target auto sial sampai anak cucu!',
+        symbols: ['🔥','💀','🦅','⚡','☠️','🌋','💥','🔱','😈','💫']
+      }
+    };
+
+    // Fallback buat kalo produk gak dikenal
+    function getHitAnim(productId) {
+      // Cari dari product ID langsung atau dari nama produk
+      var anim = HIT_ANIMS[productId];
+      if (anim) return anim;
+      // Fallback: cari berdasarkan kata kunci di nama produk
+      var p = productId.toLowerCase();
+      if (p.includes('biasa') || p.includes('standar')) return HIT_ANIMS['santet-biasa'];
+      if (p.includes('express') || p.includes('cepat')) return HIT_ANIMS['santet-express'];
+      if (p.includes('premium') || p.includes('vip')) return HIT_ANIMS['santet-premium'];
+      if (p.includes('mantan') || p.includes('ex')) return HIT_ANIMS['santet-mantan'];
+      if (p.includes('rejeki') || p.includes('duit') || p.includes('uang')) return HIT_ANIMS['santet-rejeki'];
+      if (p.includes('cinta') || p.includes('love') || p.includes('romantis')) return HIT_ANIMS['santet-cinta'];
+      if (p.includes('corporate') || p.includes('kantor') || p.includes('bisnis')) return HIT_ANIMS['santet-corporate'];
+      if (p.includes('ultra') || p.includes('max') || p.includes('extreme')) return HIT_ANIMS['santet-ultra'];
+      return HIT_ANIMS['santet-biasa'];
+    }
+
+    // ===== ANIMASI KENA SANTET! =====
+    function triggerSantetHit(productName, targetName) {
+      var container = document.getElementById('liveProgressContainer');
+      if (!container) return;
+
+      // Cari product ID dari nama
+      var matchedId = 'santet-biasa';
+      for (var k in HIT_ANIMS) {
+        if (productName && HIT_ANIMS.hasOwnProperty(k)) {
+          // Cek dari products array
+          for (var pi = 0; pi < products.length; pi++) {
+            if (products[pi].id === k && products[pi].name === productName) {
+              matchedId = k;
+              break;
+            }
+          }
+        }
+      }
+      // Fallback: cari dari produk yang terdaftar
+      if (products && products.length) {
+        for (var pj = 0; pj < products.length; pj++) {
+          if (products[pj].name === productName) {
+            matchedId = products[pj].id;
+            break;
+          }
+        }
+      }
+
+      var anim = getHitAnim(matchedId);
+      var subtitle = anim.subtitle.replace('{target}', targetName).replace('{product}', productName);
+      var joke = anim.joke.replace('{target}', targetName).replace('{product}', productName);
+
+      // Overlay effect
+      var overlay = document.createElement('div');
+      overlay.className = 'santet-hit-overlay';
+      overlay.innerHTML = [
+        '<div class="santet-hit-boom">' + anim.boom + '</div>',
+        '<div class="santet-hit-text">',
+          '<span class="santet-hit-title">' + anim.title + '</span>',
+          '<span class="santet-hit-subtitle">' + subtitle + '</span>',
+          '<span class="santet-hit-joke">' + joke + '</span>',
+        '</div>',
+        '<div class="santet-hit-particles" id="santetHitParticles"></div>',
+      ].join('\n');
+      container.appendChild(overlay);
+
+      // Particles sesuai produk
+      var symbols = anim.symbols;
+      var particleContainer = document.getElementById('santetHitParticles');
+      if (particleContainer) {
+        var count = matchedId === 'santet-ultra' ? 50 : 30;
+        for (var i = 0; i < count; i++) {
+          var p = document.createElement('span');
+          p.className = 'santet-particle';
+          p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          p.style.left = Math.random() * 100 + '%';
+          p.style.top = Math.random() * 100 + '%';
+          p.style.animationDelay = (Math.random() * 2) + 's';
+          p.style.animationDuration = (0.5 + Math.random() * 1.5) + 's';
+          var angle = Math.random() * 360;
+          var dist = 50 + Math.random() * 150;
+          var dx = Math.cos(angle * Math.PI / 180) * dist;
+          var dy = Math.sin(angle * Math.PI / 180) * dist;
+          p.style.setProperty('--dx', dx + 'px');
+          p.style.setProperty('--dy', dy + 'px');
+          p.style.setProperty('--dxf', (dx * 2.5) + 'px');
+          p.style.setProperty('--dyf', (dy * 2.5) + 'px');
+          p.style.fontSize = (0.8 + Math.random() * 2.5) + 'rem';
+          particleContainer.appendChild(p);
+        }
+      }
+
+      showToast('💥 ' + targetName + ' KENA ' + productName.toUpperCase() + '! ' + anim.boom, 'success');
+
+      setTimeout(function() {
+        overlay.classList.add('santet-hit-fadeout');
+        setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1500);
+      }, 4500);
+    }
+
+    function triggerSantetFailed(productName, targetName) {
+      var container = document.getElementById('liveProgressContainer');
+      if (!container) return;
+
+      // Cari product ID dari nama
+      var matchedId = 'santet-biasa';
+      if (products && products.length) {
+        for (var pj = 0; pj < products.length; pj++) {
+          if (products[pj].name === productName) {
+            matchedId = products[pj].id;
+            break;
+          }
+        }
+      }
+
+      var anim = getHitAnim(matchedId);
+      var joke = 'Dukun kena backlash... wkwkwk. ' + anim.joke;
+
+      var overlay = document.createElement('div');
+      overlay.className = 'santet-hit-overlay santet-failed';
+      overlay.innerHTML = [
+        '<div class="santet-hit-boom">🛡️</div>',
+        '<div class="santet-hit-text">',
+          '<span class="santet-hit-title santet-failed-title">🙅 SANTET GAGAL!</span>',
+          '<span class="santet-hit-subtitle">' + targetName + ' kebal! <strong>' + productName + '</strong> dipantulkin! 💀</span>',
+          '<span class="santet-hit-joke">' + joke + '</span>',
+        '</div>',
+        '<div class="santet-hit-particles" id="santetFailedParticles"></div>',
+      ].join('\n');
+      container.appendChild(overlay);
+
+      var symbols = ['🛡️','💀','😵','💢','🚫','😤','🤦','❌','🍃'];
+      var particleContainer = document.getElementById('santetFailedParticles');
+      if (particleContainer) {
+        for (var i = 0; i < 25; i++) {
+          var p = document.createElement('span');
+          p.className = 'santet-particle';
+          p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+          p.style.left = Math.random() * 100 + '%';
+          p.style.top = Math.random() * 100 + '%';
+          p.style.animationDelay = (Math.random() * 2) + 's';
+          p.style.animationDuration = (0.5 + Math.random() * 1.5) + 's';
+          var angle = Math.random() * 360;
+          var dist = 30 + Math.random() * 100;
+          var dx = Math.cos(angle * Math.PI / 180) * dist;
+          var dy = Math.sin(angle * Math.PI / 180) * dist;
+          p.style.setProperty('--dx', dx + 'px');
+          p.style.setProperty('--dy', dy + 'px');
+          p.style.setProperty('--dxf', (dx * 2) + 'px');
+          p.style.setProperty('--dyf', (dy * 2) + 'px');
+          p.style.fontSize = (0.8 + Math.random() * 2) + 'rem';
+          particleContainer.appendChild(p);
+        }
+      }
+
+      showToast('🛡️ ' + targetName + ' kebal santet! Dukun gagal!', 'error');
+
+      setTimeout(function() {
+        overlay.classList.add('santet-hit-fadeout');
+        setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 1500);
+      }, 4000);
+    }
+
+    // ===== ADMIN LOGIN =====
+    function renderAdminLogin(container) {
+      // Check if already logged in
+      var loggedIn = sessionStorage.getItem('santet_admin_loggedin');
+      if (loggedIn === 'true') {
+        renderAdmin(container);
+        return;
+      }
+
+      container.innerHTML = [
+        '<section class="admin-login-page">',
+          '<div class="admin-login-container">',
+            '<div class="admin-login-header">',
+              '<span class="admin-login-icon">🔐</span>',
+              '<h1>Login <span class="gradient-text">Dukun</span></h1>',
+              '<p class="admin-desc">Panel rahasia para dukun. Masukkan kredensial gaib anda.</p>',
+            '</div>',
+            '<form class="admin-login-form" onsubmit="adminLogin(event)">',
+              '<div class="form-group">',
+                '<label class="form-label">🧙 Nama Dukun</label>',
+                '<input type="text" class="form-input" id="dukunName" placeholder="Contoh: Ki Joko Bodho" value="Ki Joko" required>',
+              '</div>',
+              '<div class="form-group">',
+                '<label class="form-label">🔮 Level Dukun</label>',
+                '<select class="form-input" id="dukunLevel">',
+                  '<option value="1">Level 1 — Dukun Magang</option>',
+                  '<option value="2">Level 2 — Dukun Muda</option>',
+                  '<option value="3" selected>Level 3 — Dukun Berlisensi ✅</option>',
+                  '<option value="4">Level 4 — Dukun Senior</option>',
+                  '<option value="5">Level 5 — Dukun Legendaris</option>',
+                '</select>',
+                '<small class="form-hint">Minimal Level 3 untuk akses dashboard</small>',
+              '</div>',
+              '<div class="form-group">',
+                '<label class="form-label">🗝️ Mantra Rahasia</label>',
+                '<input type="password" class="form-input" id="dukunPassword" placeholder="Ketik: santet123" value="santet123" required>',
+                '<small class="form-hint">Hint: santet123 (tenang, ini cuma parodi 😉)</small>',
+              '</div>',
+              '<button type="submit" class="btn btn-primary btn-lg btn-full">🔓 Buka Portal Dukun</button>',
+            '</form>',
+            '<div class="admin-login-joke">',
+              '<p>💡 <em>"Ilmu tanpa amal ibarat santet tanpa target. Mubazir."</em></p>',
+            '</div>',
+            '<div id="loginError" class="admin-login-error hidden"></div>',
+          '</div>',
+        '</section>'
+      ].join('\n');
+    }
+
+    function adminLogin(e) {
+      e.preventDefault();
+      var name = document.getElementById('dukunName').value.trim();
+      var level = document.getElementById('dukunLevel').value;
+      var password = document.getElementById('dukunPassword').value.trim();
+      var errorEl = document.getElementById('loginError');
+
+      if (!name) {
+        errorEl.textContent = '❌ Nama dukun tidak boleh kosong! Dukun misterius tidak diperbolehkan.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      if (parseInt(level) < 3) {
+        errorEl.textContent = '❌ Level dukun minimal 3! Silahkan ikut training dukun dulu.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      if (password !== 'santet123') {
+        errorEl.textContent = '❌ Mantra rahasia salah! Coba combaLagi: santet123 (huruf kecil semua)';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      // Login berhasil!
+      sessionStorage.setItem('santet_admin_loggedin', 'true');
+      sessionStorage.setItem('santet_admin_name', name);
+      sessionStorage.setItem('santet_admin_level', level);
+      showToast('✅ Selamat datang, ' + name + '! Portal dukun terbuka! 🔓', 'success');
+      navigate('admin');
+    }
+
+    // ===== ADMIN =====
+    function renderAdmin(container) {
+      container.innerHTML = [
+        '<section class="admin-page">',
+          '<div class="admin-header">',
+            '<span class="admin-icon">⚙️</span>',
+            '<h1>Dashboard <span class="gradient-text">Dukun</span></h1>',
+            '<p class="admin-desc">Panel rahasia para dukun &mdash; pantau semua santet yang masuk.</p>',
+            '<small class="admin-warning">🔐 Hanya untuk dukun level 3 ke atas.</small>',
+          '</div>',
+          '<div class="admin-orders" id="adminOrders"><div class="loading-products">Memuat data santet...</div></div>',
+        '</section>'
+      ].join('\n');
+      loadAdminOrders();
+    }
+
+    async function loadAdminOrders() {
+      const result = await api('/orders');
+      const container = document.getElementById('adminOrders');
+      if (!result.success) {
+        container.innerHTML = '<p>Gagal memuat data santet. Mungkin kena serangan santet balik.</p>';
+        return;
+      }
+
+      if (result.data.length === 0) {
+        container.innerHTML = '<div class="admin-empty"><span>📭</span><h3>Belum ada santet masuk</h3><p>Yuk, santet seseorang! 👀</p></div>';
+        return;
+      }
+
+      container.innerHTML = result.data.map(function(o) {
+        var badgeCls = 'badge-warning';
+        if (o.status === 'selesai') badgeCls = 'badge-success';
+        else if (o.status === 'gagal') badgeCls = 'badge-danger';
+        return [
+          '<div class="admin-order-card">',
+            '<div class="admin-order-header">',
+              '<span class="admin-order-id">#' + o.id + '</span>',
+              '<span class="badge ' + badgeCls + '">' + o.status.replace(/-/g, ' ') + '</span>',
+            '</div>',
+            '<div class="admin-order-body">',
+              '<div class="admin-order-info">',
+                '<p><strong>Tracking:</strong> ' + o.trackingNumber + '</p>',
+                '<p><strong>Produk:</strong> ' + o.productName + '</p>',
+                '<p><strong>Target:</strong> ' + o.targetName + '</p>',
+                '<p><strong>Alasan:</strong> ' + o.reason + '</p>',
+                '<p><strong>Metode:</strong> ' + o.deliveryMethod + '</p>',
+                '<p><strong>Waktu:</strong> ' + new Date(o.createdAt).toLocaleString('id-ID') + '</p>',
+              '</div>',
+              '<div class="admin-order-actions">',
+                '<select class="form-input admin-status-select" onchange="updateOrderStatus(\'' + o.id + '\', this.value)">',
+                  '<option value="diproses"' + (o.status === 'diproses' ? ' selected' : '') + '>🕯️ Diproses</option>',
+                  '<option value="dikirim"' + (o.status === 'dikirim' ? ' selected' : '') + '>🚀 Dikirim</option>',
+                  '<option value="dalam-perjalanan"' + (o.status === 'dalam-perjalanan' ? ' selected' : '') + '>🌀 Dalam Perjalanan</option>',
+                  '<option value="selesai"' + (o.status === 'selesai' ? ' selected' : '') + '>✅ Selesai</option>',
+                  '<option value="gagal"' + (o.status === 'gagal' ? ' selected' : '') + '>💀 Gagal</option>',
+                '</select>',
+                '<button class="btn btn-sm btn-danger" onclick="showToast(\'Santet dibatalkan! Dukun dihukum push up 50x.\')">🛑 Batal</button>',
+              '</div>',
+            '</div>',
+            '<div class="admin-order-footer"><small>Dibuat: ' + new Date(o.createdAt).toLocaleString('id-ID') + '</small></div>',
+          '</div>'
+        ].join('\n');
+      }).join('\n');
+    }
+
+    async function updateOrderStatus(orderId, status) {
+      const result = await api('/orders/' + orderId, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: status })
+      });
+      if (result.success) {
+        showToast('✅ Status santet diubah ke: ' + status.replace(/-/g, ' '), 'success');
+      } else {
+        showToast('❌ Gagal update status', 'error');
+      }
+    }
+
+    function toggleNav() {
+      document.getElementById('navLinks').classList.toggle('active');
+    }
+
+    // ===== INIT =====
+    const hash = location.hash.slice(1) || 'home';
+    renderPage(hash);
+  </script>
+</body>
+</html>
